@@ -1,0 +1,1 @@
+# Trimo-Detail

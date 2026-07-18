@@ -141,3 +141,20 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# ------------------------------
+# Específico do projeto Trimo Detail
+# ------------------------------
+
+# Vercel
+.vercel
+
+# Docker (volume local do Postgres, caso não use volume nomeado)
+pgdata/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/

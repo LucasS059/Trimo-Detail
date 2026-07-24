@@ -1,0 +1,27 @@
+import { MetadataRoute } from 'next';
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  // Troque pelo domínio real do seu projeto depois
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trimodetail.com.br';
+
+  return [
+    {
+      url: baseUrl,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 1.0, // Prioridade máxima para a Landing Page
+    },
+    {
+      url: `${baseUrl}/cadastro`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.8, // Alta prioridade para a página de conversão
+    },
+    {
+      url: `${baseUrl}/login`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
+    },
+  ];
+}

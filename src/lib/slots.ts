@@ -1,5 +1,5 @@
 // lib/slots.ts
-import { listarOcupacoesParaSlots } from "./db/agendamentos";
+import { listarBloqueiosParaSlots, listarOcupacoesParaSlots } from "./db/agendamentos";
 import { buscarHorariosFuncionamento } from "./db/lojas";
 
 type HorarioFuncionamento = {
@@ -35,10 +35,14 @@ export async function calcularHorariosLivres(params: {
   const fimDia = combinarDataHora(data, horarioDoDia.hora_fechamento);
 
   const ocupacoes = await listarOcupacoesParaSlots(lojaId, inicioDia, fimDia);
-  const intervalosOcupados = ocupacoes.map((o) => ({
-    inicio: new Date(o.data_hora),
-    fim: new Date(new Date(o.data_hora).getTime() + o.duracao_minutos * 60000),
-  }));
+  const bloqueios = await listarBloqueiosParaSlots(lojaId, inicioDia, fimDia);
+  const intervalosOcupados = [
+    ...ocupacoes.map((o) => ({
+      inicio: new Date(o.data_hora),
+      fim: new Date(new Date(o.data_hora).getTime() + o.duracao_minutos * 60000),
+    })),
+    ...bloqueios.map((b) => ({ inicio: new Date(b.inicio), fim: new Date(b.fim) })),
+  ];
 
   const agora = new Date();
   const limiteMinimo = new Date(agora.getTime() + antecedenciaMinimaMinutos * 60000);
@@ -62,6 +66,34 @@ export async function calcularHorariosLivres(params: {
   }
 
   return slotsLivres;
+}
+
+export async function agendamentoDisponivel(params: {
+  lojaId: string;
+  inicio: Date;
+  duracaoMinutos: number;
+}) {
+  const { lojaId, inicio, duracaoMinutos } = params;
+  const horarios = (await buscarHorariosFuncionamento(lojaId)) as HorarioFuncionamento[];
+  const diaSemana = inicio.getDay();
+  const horarioDoDia = horarios.find((h) => h.dia_semana === diaSemana);
+
+  if (!horarioDoDia || horarioDoDia.fechado) return false;
+
+  const fim = new Date(inicio.getTime() + duracaoMinutos * 60000);
+  const inicioDia = combinarDataHora(inicio, horarioDoDia.hora_abertura);
+  const fimDia = combinarDataHora(inicio, horarioDoDia.hora_fechamento);
+
+  if (inicio < inicioDia || fim > fimDia) return false;
+  if (inicio.getTime() < Date.now()) return false;
+
+  const ocupacoes = await listarOcupacoesParaSlots(lojaId, inicio, fim);
+  if (ocupacoes.length > 0) return false;
+
+  const bloqueios = await listarBloqueiosParaSlots(lojaId, inicio, fim);
+  if (bloqueios.length > 0) return false;
+
+  return true;
 }
 
 function combinarDataHora(data: Date, horaISO: string): Date {

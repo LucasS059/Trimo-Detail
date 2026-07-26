@@ -1,10 +1,10 @@
-// ModalNovoAgendamento.tsx
 "use client";
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { criarAgendamentoPeloAdmin } from "@/lib/actions/agendamentos";
+import { toast } from "sonner"; // <-- Importamos o toast
 
 export function ModalNovoAgendamento({ servicos }: { servicos: any[] }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,21 +15,21 @@ export function ModalNovoAgendamento({ servicos }: { servicos: any[] }) {
       try {
         await criarAgendamentoPeloAdmin(formData);
         setIsOpen(false);
-      } catch (error) {
-        console.error("Erro ao criar agendamento:", error);
+        toast.success("Agendamento criado com sucesso!"); // Pop-up elegante
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao criar agendamento");
       }
     });
   }
 
   return (
     <>
-      <Button
-        variant="primary"
+      <button
         onClick={() => setIsOpen(true)}
-        className="bg-[#E56B25] hover:bg-[#cf5818] shadow-lg shadow-[#E56B25]/20"
+        className="px-4 py-2.5 rounded-xl bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-bold transition-colors shadow-lg shadow-[#E56B25]/20 flex items-center gap-2"
       >
-        <span className="mr-2">+</span> Novo agendamento
-      </Button>
+        <span>+</span> Novo agendamento
+      </button>
 
       <Modal aberto={isOpen} onFechar={() => setIsOpen(false)} titulo="Novo Agendamento" maxWidth="max-w-2xl">
         <form action={handleSubmit} className="flex flex-col gap-6">
@@ -69,9 +69,13 @@ export function ModalNovoAgendamento({ servicos }: { servicos: any[] }) {
             <Button variant="secondary" type="button" onClick={() => setIsOpen(false)} disabled={pending}>
               Cancelar
             </Button>
-            <Button variant="primary" type="submit" disabled={pending} className="bg-[#E56B25] hover:bg-[#cf5818]">
+            <button 
+              type="submit" 
+              disabled={pending} 
+              className="px-4 py-2.5 rounded-xl bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-bold transition-colors disabled:opacity-50"
+            >
               {pending ? "Salvando..." : "Criar Agendamento"}
-            </Button>
+            </button>
           </div>
         </form>
       </Modal>

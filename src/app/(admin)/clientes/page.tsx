@@ -1,19 +1,33 @@
-// app/(admin)/clientes/page.tsx
 import { listarClientes } from "@/lib/db/clientes";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
-import { ClientesTabela } from "@/components/clientes/clientes-tabela";
+import { ClientesLista } from "@/components/clientes/clientes-lista";
 
-export default async function ClientesPage() {
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ busca?: string; page?: string }>;
+}) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) redirect("/login");
 
-  const clientes = await listarClientes(lojaId);
+  const params = await searchParams;
+  const busca = params.busca || "";
+  const pagina = Number(params.page) || 1;
+
+  const resultado = await listarClientes(lojaId, busca, pagina, 10);
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-6">Clientes</h1>
-      <ClientesTabela clientes={clientes} />
+    <div className="min-h-screen bg-zinc-50 -m-6 p-6 sm:-m-8 sm:p-8">
+      <div className="max-w-5xl mx-auto">
+        <ClientesLista 
+          clientes={resultado.dados} 
+          paginaAtual={resultado.paginaAtual}
+          totalPaginas={resultado.totalPaginas}
+          totalClientes={resultado.totalClientes}
+          buscaAtual={busca}
+        />
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from 'sonner';
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trimodetail.com.br';
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className="scroll-smooth" data-scroll-behavior="smooth">
       <body className={styles.body}>
         {children}
+        <Toaster position="top-right" richColors />     
       </body>
     </html>
   );

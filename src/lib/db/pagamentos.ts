@@ -119,3 +119,55 @@ export async function resumoFinanceiro(lojaId: string, inicio: Date, fim: Date) 
     totalEmAberto: emAberto[0].total as string,
   };
 }
+
+// ==========================================
+// NOVAS FUNÇÕES PARA O DASHBOARD COM GRÁFICO E LISTA PAGINADA
+// ==========================================
+
+export async function faturamentoPorDia(lojaId: string, inicio: Date, fim: Date) {
+  const { rows } = await pool.query(
+    `SELECT TO_CHAR(p.confirmado_em, 'DD/MM') as dia, SUM(p.valor) as total
+     FROM pagamentos p
+     JOIN agendamentos a ON a.id = p.agendamento_id
+     WHERE a.loja_id = $1 
+       AND p.status = 'confirmado' 
+       AND p.confirmado_em BETWEEN $2 AND $3
+     GROUP BY dia, DATE(p.confirmado_em)
+     ORDER BY DATE(p.confirmado_em) ASC`,
+    [lojaId, inicio.toISOString(), fim.toISOString()]
+  );
+  return rows.map(r => ({ dia: r.dia, total: Number(r.total) }));
+}
+
+export async function listarPagamentosPaginados(lojaId: string, inicio: Date, fim: Date, pagina: number = 1, limite: number = 8) {
+  const offset = (pagina - 1) * limite;
+
+  const countQuery = await pool.query(
+    `SELECT COUNT(*)
+     FROM pagamentos p
+     JOIN agendamentos a ON a.id = p.agendamento_id
+     WHERE a.loja_id = $1 AND p.confirmado_em BETWEEN $2 AND $3`,
+    [lojaId, inicio.toISOString(), fim.toISOString()]
+  );
+  const total = parseInt(countQuery.rows[0].count, 10);
+
+  const { rows } = await pool.query(
+    `SELECT p.id, p.valor, p.forma, p.forma_manual_detalhe, p.status, p.confirmado_em as created_at,
+            c.nome as cliente_nome, s.nome as servico_nome
+     FROM pagamentos p
+     JOIN agendamentos a ON p.agendamento_id = a.id
+     JOIN clientes c ON a.cliente_id = c.id
+     JOIN servicos s ON a.servico_id = s.id
+     WHERE a.loja_id = $1 AND p.confirmado_em BETWEEN $2 AND $3
+     ORDER BY p.confirmado_em DESC
+     LIMIT $4 OFFSET $5`,
+    [lojaId, inicio.toISOString(), fim.toISOString(), limite, offset]
+  );
+
+  return {
+    dados: rows,
+    totalPaginas: Math.ceil(total / limite),
+    paginaAtual: pagina,
+    totalRegistros: total
+  };
+}

@@ -1,11 +1,12 @@
 "use server";
 
-import { atualizarConfiguracoesLoja } from "@/lib/db/lojas";
+import { atualizarConfiguracoesLoja, buscarLojaPorSlug } from "@/lib/db/lojas";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { revalidatePath } from "next/cache";
 
 export async function salvarConfiguracoesAction(dados: {
   nome: string;
+  slug: string;
   nome_dono: string | null;
   descricao: string | null;
   imagem_url: string | null;
@@ -19,6 +20,13 @@ export async function salvarConfiguracoesAction(dados: {
 }) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) throw new Error("Não autenticado");
+
+  if (dados.slug) {
+    const lojaExistente = await buscarLojaPorSlug(dados.slug);
+    if (lojaExistente && lojaExistente.id !== lojaId) {
+      throw new Error("Este link público já está em uso. Escolha outro slug.");
+    }
+  }
 
   const { mercadopago_access_token, mercadopago_user_id, ...resto } = dados;
 

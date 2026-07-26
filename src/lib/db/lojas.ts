@@ -23,6 +23,7 @@ export type Loja = {
 // problema de parsing e fica mais fácil de reaproveitar em outros arquivos.
 export type CamposEditaveisLoja = {
   nome?: string;
+  slug?: string;
   nome_dono?: string | null;
   descricao?: string | null;
   imagem_url?: string | null;
@@ -50,7 +51,7 @@ export async function buscarLojaPorSlug(slug: string): Promise<Loja | null> {
 
 export async function buscarLojaPorEmail(email: string) {
   const { rows } = await pool.query(
-    `SELECT id, nome, slug, email_login, senha_hash FROM lojas WHERE email_login = $1`,
+    `SELECT id, nome, slug, email_login, senha_hash FROM lojas WHERE email_login = $1 AND ativo = TRUE`,
     [email]
   );
   return rows[0] ?? null;

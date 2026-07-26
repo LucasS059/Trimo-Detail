@@ -58,8 +58,25 @@ export async function buscarAgendamento(id: string) {
      JOIN clientes c ON c.id = a.cliente_id
      JOIN servicos s ON s.id = a.servico_id
      JOIN lojas l ON l.id = a.loja_id
-     WHERE a.id = $1`,
+     WHERE a.id = $1
+       AND l.ativo = TRUE`,
     [id]
+  );
+  return rows[0] ?? null;
+}
+
+export async function buscarAgendamentoPorIdEloja(id: string, lojaId: string) {
+  const { rows } = await pool.query(
+    `SELECT a.*, c.nome AS cliente_nome, c.telefone AS cliente_telefone,
+            s.nome AS servico_nome, l.slug AS loja_slug, l.nome AS loja_nome
+     FROM agendamentos a
+     JOIN clientes c ON c.id = a.cliente_id
+     JOIN servicos s ON s.id = a.servico_id
+     JOIN lojas l ON l.id = a.loja_id
+     WHERE a.id = $1
+       AND a.loja_id = $2
+       AND l.ativo = TRUE`,
+    [id, lojaId]
   );
   return rows[0] ?? null;
 }
@@ -120,7 +137,8 @@ export async function listarOcupacoesParaSlots(lojaId: string, inicio: Date, fim
      FROM agendamentos
      WHERE loja_id = $1
        AND status <> 'cancelado'
-       AND data_hora BETWEEN $2 AND $3`,
+       AND data_hora < $3
+       AND (data_hora + (duracao_minutos || ' minute')::interval) > $2`,
     [lojaId, inicio.toISOString(), fim.toISOString()]
   );
   return rows as { data_hora: string; duracao_minutos: number }[];
@@ -143,11 +161,11 @@ export async function criarBloqueioDb(dados: {
 
 export async function listarBloqueiosParaSlots(lojaId: string, inicio: Date, fim: Date) {
   const { rows } = await pool.query(
-    `SELECT inicio, fim 
-     FROM bloqueios_horario 
-     WHERE loja_id = $1 
-       AND inicio >= $2 
-       AND fim <= $3`,
+    `SELECT inicio, fim
+     FROM bloqueios_horario
+     WHERE loja_id = $1
+       AND inicio < $3
+       AND fim > $2`,
     [lojaId, inicio.toISOString(), fim.toISOString()]
   );
   return rows as { inicio: string; fim: string }[];

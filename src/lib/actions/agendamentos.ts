@@ -3,6 +3,7 @@
 import {
   atualizarStatus,
   buscarAgendamento,
+  buscarAgendamentoPorIdEloja,
   cancelarAgendamento as cancelarAgendamentoDb,
   criarAgendamento as criarAgendamentoDb,
   marcarPresencaConfirmada,
@@ -22,6 +23,7 @@ import {
   mensagemConfirmacaoAgendamento,
   mensagemMudancaStatus,
 } from "@/lib/whatsapp/client";
+import { agendamentoDisponivel } from "@/lib/slots";
 import { revalidatePath } from "next/cache";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 
@@ -52,11 +54,24 @@ export async function criarAgendamentoPublico(params: {
     telefone: params.telefoneCliente,
   });
 
+  const dataHora = new Date(params.dataHoraISO);
+  const disponivel = await agendamentoDisponivel({
+    lojaId: loja.id,
+    inicio: dataHora,
+    duracaoMinutos: servico.duracao_minutos,
+  });
+
+  if (!disponivel) {
+    throw new Error(
+      "Horário indisponível ou em conflito com outro agendamento. Escolha outro horário."
+    );
+  }
+
   const agendamentoId = await criarAgendamentoDb({
     lojaId: loja.id,
     clienteId,
     servicoId: servico.id,
-    dataHora: new Date(params.dataHoraISO),
+    dataHora,
     duracaoMinutos: servico.duracao_minutos,
     valor: Number(servico.preco),
   });
@@ -78,9 +93,13 @@ export async function criarAgendamentoPublico(params: {
 }
 
 export async function mudarStatusAgendamento(agendamentoId: string, novoStatus: string) {
-  await atualizarStatus(agendamentoId, novoStatus as never);
+  const lojaId = await obterLojaLogadaId();
+  if (!lojaId) throw new Error("Não autorizado");
 
-  const agendamento = await buscarAgendamento(agendamentoId);
+  const agendamento = await buscarAgendamentoPorIdEloja(agendamentoId, lojaId);
+  if (!agendamento) throw new Error("Agendamento não encontrado");
+
+  await atualizarStatus(agendamentoId, novoStatus as never);
   if (agendamento) {
     const linkAcompanhamento = `${process.env.NEXT_PUBLIC_APP_URL}/acompanhar/${agendamentoId}`;
     await enviarWhatsApp({
@@ -118,6 +137,12 @@ export async function cancelarAgendamentoPeloCliente(agendamentoId: string) {
 }
 
 export async function cancelarAgendamentoPeloDono(agendamentoId: string) {
+  const lojaId = await obterLojaLogadaId();
+  if (!lojaId) throw new Error("Não autorizado");
+
+  const agendamento = await buscarAgendamentoPorIdEloja(agendamentoId, lojaId);
+  if (!agendamento) throw new Error("Agendamento não encontrado");
+
   await cancelarAgendamentoDb(agendamentoId, "dono");
   revalidatePath("/agenda");
 }
@@ -133,7 +158,10 @@ export async function confirmarPresenca(agendamentoId: string) {
  * copia-e-cola e expiração pra reexibição posterior.
  */
 export async function finalizarComPix(agendamentoId: string) {
-  const agendamento = await buscarAgendamento(agendamentoId);
+  const lojaId = await obterLojaLogadaId();
+  if (!lojaId) throw new Error("Não autorizado");
+
+  const agendamento = await buscarAgendamentoPorIdEloja(agendamentoId, lojaId);
   if (!agendamento) throw new Error("Agendamento não encontrado");
 
   const pixExistente = await buscarPixPendentePorAgendamento(agendamentoId);
@@ -186,7 +214,10 @@ export async function finalizarComBaixaManual(params: {
   agendamentoId: string;
   detalhe: string;
 }) {
-  const agendamento = await buscarAgendamento(params.agendamentoId);
+  const lojaId = await obterLojaLogadaId();
+  if (!lojaId) throw new Error("Não autorizado");
+
+  const agendamento = await buscarAgendamentoPorIdEloja(params.agendamentoId, lojaId);
   if (!agendamento) throw new Error("Agendamento não encontrado");
 
   await registrarBaixaManual({
@@ -215,6 +246,16 @@ export async function criarAgendamentoPeloAdmin(formData: FormData) {
 
   const servico = await buscarServico(servicoId, lojaId);
   if (!servico) throw new Error("Serviço não encontrado");
+
+  const disponivel = await agendamentoDisponivel({
+    lojaId,
+    inicio: dataHora,
+    duracaoMinutos: servico.duracao_minutos,
+  });
+
+  if (!disponivel) {
+    throw new Error("Horário indisponível ou conflita com outro agendamento.");
+  }
 
   await criarAgendamentoDb({
     lojaId,

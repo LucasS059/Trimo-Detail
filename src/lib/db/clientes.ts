@@ -135,8 +135,7 @@ export async function atualizarCliente(
     `UPDATE clientes
      SET nome = $1,
          telefone = $2,
-         email = $3,
-         updated_at = now()
+         email = $3
      WHERE id = $4`,
     [dados.nome, dados.telefone, dados.email ?? null, clienteId]
   );

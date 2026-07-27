@@ -40,5 +40,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 
 const styles = {
-  body: "antialiased bg-[#FAFAFA] text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white min-h-screen",
+  body: "antialiased bg-[#FAFAFA] text-zinc-900 font-sans selection:bg-[#E56B25] selection:text-white min-h-screen",
 };

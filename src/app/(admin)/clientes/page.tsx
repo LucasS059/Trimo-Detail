@@ -18,16 +18,14 @@ export default async function ClientesPage({
   const resultado = await listarClientes(lojaId, busca, pagina, 10);
 
   return (
-    <div className="min-h-screen bg-zinc-50 -m-6 p-6 sm:-m-8 sm:p-8">
-      <div className="max-w-5xl mx-auto">
-        <ClientesLista 
-          clientes={resultado.dados} 
-          paginaAtual={resultado.paginaAtual}
-          totalPaginas={resultado.totalPaginas}
-          totalClientes={resultado.totalClientes}
-          buscaAtual={busca}
-        />
-      </div>
+    <div className="max-w-5xl mx-auto w-full">
+      <ClientesLista 
+        clientes={resultado.dados} 
+        paginaAtual={resultado.paginaAtual}
+        totalPaginas={resultado.totalPaginas}
+        totalClientes={resultado.totalClientes}
+        buscaAtual={busca}
+      />
     </div>
   );
 }

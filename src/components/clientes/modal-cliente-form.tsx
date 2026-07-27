@@ -6,6 +6,13 @@ import { criarClienteAction, atualizarClienteAction } from "@/lib/actions/client
 import { toast } from "sonner";
 import { Cliente } from "./clientes-lista";
 
+const campo = {
+  // Label agora é text-white para máximo contraste
+  label: "text-[11px] font-semibold uppercase tracking-wider text-white",
+  // Placeholder um pouco mais claro (zinc-400)
+  input: "w-full h-10 px-3 mt-1.5 rounded-lg border border-zinc-700 bg-zinc-900 text-white placeholder:text-zinc-400 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] transition-all text-sm",
+};
+
 export function ModalClienteForm({
   aberto,
   onFechar,
@@ -63,46 +70,46 @@ export function ModalClienteForm({
       <form onSubmit={handleSubmit} className="flex flex-col gap-6">
         
         {/* Dados Pessoais */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-zinc-700">Nome completo</label>
-            <input required value={nome} onChange={(e) => setNome(e.target.value)} className="w-full h-9 px-3 mt-1 rounded-md border border-zinc-300 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] text-sm" placeholder="Nome do cliente" />
+            <label className={campo.label}>Nome completo</label>
+            <input required value={nome} onChange={(e) => setNome(e.target.value)} className={campo.input} placeholder="Nome do cliente" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-zinc-700">WhatsApp</label>
-              <input required value={telefone} onChange={(e) => setTelefone(e.target.value)} className="w-full h-9 px-3 mt-1 rounded-md border border-zinc-300 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] text-sm" placeholder="(00) 00000-0000" />
+              <label className={campo.label}>WhatsApp</label>
+              <input required value={telefone} onChange={(e) => setTelefone(e.target.value)} className={campo.input} placeholder="(00) 00000-0000" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-zinc-700">E-mail (Opcional)</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full h-9 px-3 mt-1 rounded-md border border-zinc-300 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] text-sm" placeholder="email@exemplo.com" />
+              <label className={campo.label}>E-mail (Opcional)</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={campo.input} placeholder="email@exemplo.com" />
             </div>
           </div>
         </div>
 
         {/* Cadastro Rápido de Veículo (Oculto na edição) */}
         {!clienteEdicao && (
-          <div className="pt-4 border-t border-zinc-200 space-y-3">
-            <p className="text-sm font-semibold text-zinc-900">Vincular Veículo (Opcional)</p>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="pt-5 border-t border-zinc-800 space-y-4">
+            <p className="text-sm font-semibold text-white">Vincular Veículo <span className="text-zinc-400 font-normal">(Opcional)</span></p>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-zinc-700">Modelo</label>
-                <input value={veiculoModelo} onChange={(e) => setVeiculoModelo(e.target.value)} className="w-full h-9 px-3 mt-1 rounded-md border border-zinc-300 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] text-sm" placeholder="Ex: Civic G10" />
+                <label className={campo.label}>Modelo</label>
+                <input value={veiculoModelo} onChange={(e) => setVeiculoModelo(e.target.value)} className={campo.input} placeholder="Ex: Civic G10" />
               </div>
               <div>
-                <label className="text-xs font-semibold text-zinc-700">Placa</label>
-                <input value={veiculoPlaca} onChange={(e) => setVeiculoPlaca(e.target.value)} className="w-full h-9 px-3 mt-1 rounded-md border border-zinc-300 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] text-sm uppercase" placeholder="ABC-1234" />
+                <label className={campo.label}>Placa</label>
+                <input value={veiculoPlaca} onChange={(e) => setVeiculoPlaca(e.target.value)} className={`${campo.input} uppercase`} placeholder="ABC-1234" />
               </div>
             </div>
           </div>
         )}
 
         {/* Ações */}
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <button type="button" onClick={onFechar} disabled={pending} className="px-4 py-2 rounded-md text-sm font-semibold text-zinc-600 hover:bg-zinc-100 transition-colors">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
+          <button type="button" onClick={onFechar} disabled={pending} className="px-4 py-2.5 rounded-xl text-sm font-bold text-white hover:bg-zinc-800 transition-colors">
             Cancelar
           </button>
-          <button type="submit" disabled={pending} className="px-4 py-2 rounded-md bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-semibold transition-colors disabled:opacity-50">
+          <button type="submit" disabled={pending} className="px-4 py-2.5 rounded-xl bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-bold transition-colors disabled:opacity-50">
             {pending ? "Salvando..." : "Salvar"}
           </button>
         </div>

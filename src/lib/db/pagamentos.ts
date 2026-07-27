@@ -171,3 +171,55 @@ export async function listarPagamentosPaginados(lojaId: string, inicio: Date, fi
     totalRegistros: total
   };
 }
+export async function metricasFinanceiras(lojaId: string, inicio: Date, fim: Date) {
+  // 1. Faturamento real e Ticket Médio do mês
+  const { rows: fat } = await pool.query(
+    `SELECT 
+        COALESCE(SUM(p.valor), 0) AS total_confirmado,
+        COALESCE(AVG(p.valor), 0) AS ticket_medio,
+        COUNT(p.id) AS qtd_servicos
+     FROM pagamentos p
+     JOIN agendamentos a ON a.id = p.agendamento_id
+     WHERE a.loja_id = $1 
+       AND p.status = 'confirmado' 
+       AND p.confirmado_em BETWEEN $2 AND $3`,
+    [lojaId, inicio.toISOString(), fim.toISOString()]
+  );
+
+  // 2. Previsão de Caixa (Aguardando Pagamento + Agendados para este mês)
+  const { rows: pend } = await pool.query(
+    `SELECT COALESCE(SUM(valor), 0) AS total_a_receber
+     FROM agendamentos
+     WHERE loja_id = $1
+       AND status IN ('agendado', 'em_andamento', 'aguardando_pagamento')
+       AND data_hora BETWEEN $2 AND $3`,
+    [lojaId, inicio.toISOString(), fim.toISOString()]
+  );
+
+  // 3. Ranking de Serviços (Quais serviços dão mais lucro?)
+  const { rows: topServicos } = await pool.query(
+    `SELECT s.nome, COALESCE(SUM(p.valor), 0) as total, COUNT(p.id) as qtd
+     FROM pagamentos p
+     JOIN agendamentos a ON a.id = p.agendamento_id
+     JOIN servicos s ON a.servico_id = s.id
+     WHERE a.loja_id = $1 
+       AND p.status = 'confirmado' 
+       AND p.confirmado_em BETWEEN $2 AND $3
+     GROUP BY s.id, s.nome
+     ORDER BY total DESC
+     LIMIT 4`,
+    [lojaId, inicio.toISOString(), fim.toISOString()]
+  );
+
+  return {
+    totalConfirmado: Number(fat[0].total_confirmado),
+    ticketMedio: Number(fat[0].ticket_medio),
+    qtdServicos: Number(fat[0].qtd_servicos),
+    totalAReceber: Number(pend[0].total_a_receber),
+    topServicos: topServicos.map(s => ({
+      nome: s.nome,
+      total: Number(s.total),
+      qtd: Number(s.qtd)
+    }))
+  };
+}

@@ -1,4 +1,4 @@
-import { resumoFinanceiro, faturamentoPorDia, listarPagamentosPaginados } from "@/lib/db/pagamentos";
+import { metricasFinanceiras, faturamentoPorDia, listarPagamentosPaginados } from "@/lib/db/pagamentos";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
 import { DashboardFinanceiro } from "@/components/financeiro/dashboard-financeiro";
@@ -21,24 +21,22 @@ export default async function FinanceiroPage({
   const inicioMes = new Date(anoAtual, mesAtual - 1, 1, 0, 0, 0, 0);
   const fimMes = new Date(anoAtual, mesAtual, 0, 23, 59, 59, 999);
 
-  // Busca os 3 blocos de dados simultaneamente (muito mais rápido)
-  const [resumo, graficoDiario, pagamentos] = await Promise.all([
-    resumoFinanceiro(lojaId, inicioMes, fimMes),
+  // Busca as métricas de negócio focadas em estética automotiva
+  const [metricas, graficoDiario, pagamentos] = await Promise.all([
+    metricasFinanceiras(lojaId, inicioMes, fimMes),
     faturamentoPorDia(lojaId, inicioMes, fimMes),
-    listarPagamentosPaginados(lojaId, inicioMes, fimMes, pagina, 8) // Mostra 8 entradas por página
+    listarPagamentosPaginados(lojaId, inicioMes, fimMes, pagina, 8) 
   ]);
 
   return (
-    <div className="min-h-screen bg-zinc-50 -m-6 p-6 sm:-m-8 sm:p-8">
-      <div className="max-w-6xl mx-auto">
-        <DashboardFinanceiro 
-          resumo={resumo} 
-          grafico={graficoDiario}
-          pagamentos={pagamentos}
-          mesAtual={mesAtual} 
-          anoAtual={anoAtual} 
-        />
-      </div>
+    <div className="max-w-6xl mx-auto w-full">
+      <DashboardFinanceiro 
+        metricas={metricas} 
+        grafico={graficoDiario}
+        pagamentos={pagamentos}
+        mesAtual={mesAtual} 
+        anoAtual={anoAtual} 
+      />
     </div>
   );
 }

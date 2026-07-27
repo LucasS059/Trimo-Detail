@@ -28,7 +28,8 @@ export async function listarAgendamentosPorPeriodo(
 ) {
   const { rows } = await pool.query(
     `SELECT a.*, c.nome AS cliente_nome, c.telefone AS cliente_telefone,
-            s.nome AS servico_nome, v.modelo AS veiculo_modelo, v.placa AS veiculo_placa,
+            s.nome AS servico_nome,
+            v.modelo AS veiculo_modelo, v.placa AS veiculo_placa, v.cor AS veiculo_cor,
             p.qr_code_base64 AS pix_qr_code, p.copia_e_cola AS pix_copia_cola, p.expira_em AS pix_expira_em
      FROM agendamentos a
      JOIN clientes c ON c.id = a.cliente_id
@@ -169,4 +170,22 @@ export async function listarBloqueiosParaSlots(lojaId: string, inicio: Date, fim
     [lojaId, inicio.toISOString(), fim.toISOString()]
   );
   return rows as { inicio: string; fim: string }[];
+}
+
+export async function excluirBloqueioDb(id: string, lojaId: string) {
+  await pool.query(
+    `DELETE FROM bloqueios_horario WHERE id = $1 AND loja_id = $2`,
+    [id, lojaId]
+  );
+}
+
+export async function listarBloqueiosAtivos(lojaId: string) {
+  const { rows } = await pool.query(
+    `SELECT id, inicio, fim, motivo
+     FROM bloqueios_horario
+     WHERE loja_id = $1 AND fim >= now()
+     ORDER BY inicio ASC`,
+    [lojaId]
+  );
+  return rows;
 }

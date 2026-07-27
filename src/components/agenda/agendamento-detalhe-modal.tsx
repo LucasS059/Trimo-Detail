@@ -4,6 +4,8 @@ import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+
 import {
   mudarStatusAgendamento,
   cancelarAgendamentoPeloDono,
@@ -17,8 +19,11 @@ export type AgendamentoDetalhe = {
   status: string;
   valor: string;
   cliente_nome: string;
+  cliente_telefone: string;
   servico_nome: string;
   veiculo_modelo: string | null;
+  veiculo_placa: string | null;
+  veiculo_cor: string | null;
   pix_qr_code: string | null;
   pix_copia_cola: string | null;
   pix_expira_em: string | null;
@@ -28,25 +33,6 @@ type Etapa = "detalhe" | "pagamento" | "pix";
 
 type DadosPix = { qrCodeBase64?: string; copiaECola?: string; expiraEm?: string | Date | null };
 
-// --- estilos reaproveitados, isolados do JSX ---
-const cx = {
-  campoLabel: "text-[11px] font-semibold uppercase tracking-wider text-zinc-400",
-  campoValor: "text-sm font-semibold text-zinc-900 mt-0.5",
-  acaoPrimaria: "bg-[#E56B25] hover:bg-[#cf5818] text-white",
-  metodoBotao:
-    "flex items-center justify-between w-full px-4 py-3.5 rounded-xl border border-zinc-200 bg-white hover:border-zinc-400 transition-colors text-left disabled:opacity-50 disabled:pointer-events-none",
-  metodoLabel: "text-sm font-semibold text-zinc-900",
-  metodoDetalhe: "text-xs text-zinc-400",
-  campoResumo: "flex items-center justify-between bg-zinc-50 rounded-xl px-4 py-3",
-  campoPix: "w-full text-xs p-2.5 border border-zinc-200 rounded-lg bg-zinc-50 text-zinc-600 select-all",
-  voltar: "text-xs font-semibold text-zinc-400 hover:text-zinc-700 transition-colors",
-};
-
-/**
- * Modal único do agendamento. Recebe a lista completa e apenas o id selecionado,
- * e deriva o agendamento atual dela — assim, quando o status muda no servidor
- * e a lista é revalidada, o modal reflete o dado novo automaticamente.
- */
 export function AgendamentoModal({
   agendamentos,
   agendamentoId,
@@ -61,8 +47,8 @@ export function AgendamentoModal({
   const [etapa, setEtapa] = useState<Etapa>("detalhe");
   const [dadosPix, setDadosPix] = useState<DadosPix | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
 
-  // Sempre que um novo agendamento é aberto, reseta a etapa e usa o Pix já salvo (se houver)
   useEffect(() => {
     if (agendamento) {
       setEtapa("detalhe");
@@ -89,10 +75,14 @@ export function AgendamentoModal({
     startTransition(() => mudarStatusAgendamento(agendamento.id, "aguardando_pagamento"));
   }
 
-  function cancelar() {
+  function pedirCancelamento() {
+    setConfirmandoCancelamento(true);
+  }
+
+  function confirmarCancelamento() {
     if (!agendamento) return;
-    if (!confirm("Cancelar este agendamento?")) return;
     startTransition(() => cancelarAgendamentoPeloDono(agendamento.id));
+    setConfirmandoCancelamento(false);
     onFechar();
   }
 
@@ -134,113 +124,138 @@ export function AgendamentoModal({
   };
 
   return (
-    <Modal aberto={agendamento !== null} onFechar={onFechar} titulo={titulos[etapa]} maxWidth="max-w-md">
-      {agendamento && etapa === "detalhe" && (
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold text-zinc-900">{agendamento.cliente_nome}</h3>
-            <StatusBadge status={agendamento.status} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className={cx.campoLabel}>Horário</p>
-              <p className={`${cx.campoValor} font-mono tabular-nums`}>
-                {new Date(agendamento.data_hora).toLocaleTimeString("pt-BR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </p>
+    <>
+      <Modal aberto={agendamento !== null} onFechar={onFechar} titulo={titulos[etapa]} maxWidth="max-w-md">
+        {agendamento && etapa === "detalhe" && (
+          <div className={styles.wrapperDetalhe}>
+            <div className={styles.headerCliente}>
+              <div>
+                <h3 className={styles.nomeCliente}>{agendamento.cliente_nome}</h3>
+                <p className={styles.telefoneCliente}>{agendamento.cliente_telefone}</p>
+              </div>
+              <StatusBadge status={agendamento.status} />
             </div>
-            <div>
-              <p className={cx.campoLabel}>Valor</p>
-              <p className={`${cx.campoValor} font-mono tabular-nums`}>
+
+            {agendamento.veiculo_modelo && (
+              <div className={styles.cardVeiculo}>
+                <p className={styles.veiculoNome}>
+                  {agendamento.veiculo_modelo}
+                  {agendamento.veiculo_cor ? ` - ${agendamento.veiculo_cor}` : ""}
+                </p>
+                {agendamento.veiculo_placa && (
+                  <p className={styles.veiculoPlaca}>{agendamento.veiculo_placa}</p>
+                )}
+              </div>
+            )}
+
+            <div className={styles.gridInfo}>
+              <div>
+                <p className={styles.campoLabel}>Horário</p>
+                <p className={styles.campoValorMono}>
+                  {new Date(agendamento.data_hora).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+              <div>
+                <p className={styles.campoLabel}>Valor</p>
+                <p className={styles.campoValorMono}>
+                  R$ {Number(agendamento.valor).toFixed(2).replace(".", ",")}
+                </p>
+              </div>
+              <div className={styles.campoServico}>
+                <p className={styles.campoLabel}>Serviço</p>
+                <p className={styles.campoValor}>{agendamento.servico_nome}</p>
+              </div>
+            </div>
+
+            {!["concluido", "cancelado", "nao_compareceu"].includes(agendamento.status) && (
+              <div className={styles.acoes}>
+                {agendamento.status === "agendado" && (
+                  <Button disabled={pending} onClick={iniciarAtendimento} className={styles.acaoPrimaria}>
+                    Iniciar atendimento
+                  </Button>
+                )}
+
+                {agendamento.status === "em_andamento" && (
+                  <Button disabled={pending} onClick={marcarProntoParaPagamento} className={styles.acaoPrimaria}>
+                    Serviço pronto
+                  </Button>
+                )}
+
+                {agendamento.status === "aguardando_pagamento" && (
+                  <Button
+                    disabled={pending}
+                    onClick={() => setEtapa(dadosPix?.qrCodeBase64 ? "pix" : "pagamento")}
+                    className={styles.acaoPrimaria}
+                  >
+                    {dadosPix?.qrCodeBase64 ? "Ver cobrança Pix" : "Registrar pagamento"}
+                  </Button>
+                )}
+
+                <Button variant="secondary" disabled={pending} onClick={pedirCancelamento}>
+                  Cancelar agendamento
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {agendamento && etapa === "pagamento" && (
+          <div className={styles.wrapperPagamento}>
+            <div className={styles.campoResumo}>
+              <span className={styles.resumoNome}>{agendamento.cliente_nome}</span>
+              <span className={styles.resumoValor}>
                 R$ {Number(agendamento.valor).toFixed(2).replace(".", ",")}
-              </p>
+              </span>
             </div>
-            <div>
-              <p className={cx.campoLabel}>Serviço</p>
-              <p className={cx.campoValor}>{agendamento.servico_nome}</p>
+
+            <div className={styles.listaMetodos}>
+              <button className={styles.metodoBotao} disabled={pending} onClick={escolherPix}>
+                <span className={styles.metodoLabel}>Pix</span>
+                <span className={styles.metodoDetalhe}>{pending ? "Gerando..." : "QR Code e copia e cola"}</span>
+              </button>
+              <button className={styles.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("dinheiro")}>
+                <span className={styles.metodoLabel}>Dinheiro</span>
+                <span className={styles.metodoDetalhe}>Baixa manual</span>
+              </button>
+              <button className={styles.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("cartao")}>
+                <span className={styles.metodoLabel}>Cartão</span>
+                <span className={styles.metodoDetalhe}>Máquina própria</span>
+              </button>
             </div>
-            <div>
-              <p className={cx.campoLabel}>Veículo</p>
-              <p className={cx.campoValor}>{agendamento.veiculo_modelo ?? "Não informado"}</p>
-            </div>
-          </div>
 
-          {!["concluido", "cancelado", "nao_compareceu"].includes(agendamento.status) && (
-            <div className="flex flex-col gap-2 pt-4 border-t border-zinc-100">
-              {agendamento.status === "agendado" && (
-                <Button disabled={pending} onClick={iniciarAtendimento} className={cx.acaoPrimaria}>
-                  Iniciar atendimento
-                </Button>
-              )}
+            {erro && <p className={styles.erro}>{erro}</p>}
 
-              {agendamento.status === "em_andamento" && (
-                <Button disabled={pending} onClick={marcarProntoParaPagamento} className={cx.acaoPrimaria}>
-                  Serviço pronto
-                </Button>
-              )}
-
-              {agendamento.status === "aguardando_pagamento" && (
-                <Button
-                  disabled={pending}
-                  onClick={() => setEtapa(dadosPix?.qrCodeBase64 ? "pix" : "pagamento")}
-                  className={cx.acaoPrimaria}
-                >
-                  {dadosPix?.qrCodeBase64 ? "Ver cobrança Pix" : "Registrar pagamento"}
-                </Button>
-              )}
-
-              <Button variant="secondary" disabled={pending} onClick={cancelar}>
-                Cancelar agendamento
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {agendamento && etapa === "pagamento" && (
-        <div className="flex flex-col gap-5">
-          <div className={cx.campoResumo}>
-            <span className="text-sm text-zinc-500">{agendamento.cliente_nome}</span>
-            <span className="text-lg font-bold text-zinc-900 font-mono tabular-nums">
-              R$ {Number(agendamento.valor).toFixed(2).replace(".", ",")}
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <button className={cx.metodoBotao} disabled={pending} onClick={escolherPix}>
-              <span className={cx.metodoLabel}>Pix</span>
-              <span className={cx.metodoDetalhe}>{pending ? "Gerando..." : "QR Code e copia e cola"}</span>
-            </button>
-            <button className={cx.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("dinheiro")}>
-              <span className={cx.metodoLabel}>Dinheiro</span>
-              <span className={cx.metodoDetalhe}>Baixa manual</span>
-            </button>
-            <button className={cx.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("cartao")}>
-              <span className={cx.metodoLabel}>Cartão</span>
-              <span className={cx.metodoDetalhe}>Máquina própria</span>
+            <button className={styles.voltar} onClick={() => setEtapa("detalhe")}>
+              ‹ Voltar
             </button>
           </div>
+        )}
 
-          {erro && <p className="text-sm text-red-600">{erro}</p>}
+        {agendamento && etapa === "pix" && dadosPix?.qrCodeBase64 && (
+          <ConteudoPix
+            dadosPix={dadosPix}
+            valor={Number(agendamento.valor)}
+            clienteNome={agendamento.cliente_nome}
+            onVoltar={() => setEtapa("detalhe")}
+          />
+        )}
+      </Modal>
 
-          <button className={cx.voltar} onClick={() => setEtapa("detalhe")}>
-            ‹ Voltar
-          </button>
-        </div>
-      )}
-
-      {agendamento && etapa === "pix" && dadosPix?.qrCodeBase64 && (
-        <ConteudoPix
-          dadosPix={dadosPix}
-          valor={Number(agendamento.valor)}
-          clienteNome={agendamento.cliente_nome}
-          onVoltar={() => setEtapa("detalhe")}
-        />
-      )}
-    </Modal>
+      <ConfirmModal
+        aberto={confirmandoCancelamento}
+        titulo="Cancelar agendamento"
+        mensagem={`Tem certeza que deseja cancelar o agendamento de ${agendamento?.cliente_nome ?? ""}? Essa ação não pode ser desfeita.`}
+        textoConfirmar="Cancelar agendamento"
+        textoCancelar="Voltar"
+        destrutivo
+        pending={pending}
+        onConfirmar={confirmarCancelamento}
+        onFechar={() => setConfirmandoCancelamento(false)}
+      />
+    </>
   );
 }
 
@@ -280,40 +295,40 @@ function ConteudoPix({
   }, [dadosPix.expiraEm]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className={cx.campoResumo}>
-        <span className="text-sm text-zinc-500">{clienteNome}</span>
-        <span className="text-lg font-bold text-zinc-900 font-mono tabular-nums">
+    <div className={styles.wrapperPix}>
+      <div className={styles.campoResumo}>
+        <span className={styles.resumoNome}>{clienteNome}</span>
+        <span className={styles.resumoValor}>
           R$ {valor.toFixed(2).replace(".", ",")}
         </span>
       </div>
 
-      <div className="flex justify-center">
+      <div className={styles.qrWrapper}>
         <img
           src={`data:image/png;base64,${dadosPix.qrCodeBase64}`}
           alt="QR Code Pix"
-          className={`w-48 h-48 object-contain rounded-lg border border-zinc-100 ${expirado ? "opacity-30 grayscale" : ""}`}
+          className={`${styles.qrImagem} ${expirado ? styles.qrExpirado : ""}`}
         />
       </div>
 
       {tempoRestante && (
-        <p className={`text-center text-sm font-mono font-semibold ${expirado ? "text-red-500" : "text-zinc-700"}`}>
+        <p className={expirado ? styles.tempoExpirado : styles.tempoAtivo}>
           {expirado ? "Cobrança expirada" : `Expira em ${tempoRestante}`}
         </p>
       )}
 
       {dadosPix.copiaECola && (
-        <div className="flex flex-col gap-2">
+        <div className={styles.pixCopiaWrapper}>
           <input
             type="text"
             readOnly
             value={dadosPix.copiaECola}
             onClick={(e) => e.currentTarget.select()}
-            className={cx.campoPix}
+            className={styles.campoPix}
           />
           <Button
             size="sm"
-            className={`w-full ${cx.acaoPrimaria}`}
+            className={`w-full ${styles.acaoPrimaria}`}
             disabled={expirado}
             onClick={() => navigator.clipboard.writeText(dadosPix.copiaECola!)}
           >
@@ -322,13 +337,60 @@ function ConteudoPix({
         </div>
       )}
 
-      <p className="text-[11px] text-center text-zinc-400">
+      <p className={styles.avisoAtualizacao}>
         A tela atualiza automaticamente quando o pagamento for confirmado.
       </p>
 
-      <button className={cx.voltar} onClick={onVoltar}>
+      <button className={styles.voltar} onClick={onVoltar}>
         ‹ Voltar
       </button>
     </div>
   );
 }
+
+const styles = {
+  wrapperDetalhe: "flex flex-col gap-5",
+  headerCliente: "flex items-start justify-between gap-3",
+  nomeCliente: "text-lg font-bold text-white leading-tight",
+  telefoneCliente: "text-xs text-zinc-400 mt-0.5",
+
+  cardVeiculo: "bg-zinc-900 border border-zinc-600 rounded-xl px-4 py-3",
+  veiculoNome: "text-sm font-semibold text-white",
+  veiculoPlaca: "text-xs text-zinc-400 mt-0.5",
+
+  gridInfo: "grid grid-cols-2 gap-4",
+  campoServico: "col-span-2",
+  campoLabel: "text-[11px] font-semibold uppercase tracking-wider text-zinc-400",
+  campoValor: "text-sm font-semibold text-white mt-0.5",
+  campoValorMono: "text-sm font-semibold text-white mt-0.5 font-mono tabular-nums",
+
+  acoes: "flex flex-col gap-2 pt-4 border-t border-zinc-700",
+  acaoPrimaria: "bg-[#E56B25] hover:bg-[#cf5818] text-white",
+
+  wrapperPagamento: "flex flex-col gap-5",
+  campoResumo: "flex items-center justify-between bg-zinc-900 border border-zinc-600 rounded-xl px-4 py-3",
+  resumoNome: "text-sm text-zinc-300",
+  resumoValor: "text-lg font-bold text-white font-mono tabular-nums",
+
+  listaMetodos: "flex flex-col gap-2",
+  metodoBotao:
+    "flex items-center justify-between w-full px-4 py-3.5 rounded-xl border border-zinc-600 bg-zinc-900 hover:border-zinc-500 transition-colors text-left disabled:opacity-50 disabled:pointer-events-none",
+  metodoLabel: "text-sm font-semibold text-white",
+  metodoDetalhe: "text-xs text-zinc-400",
+
+  erro: "text-sm text-red-400",
+  voltar: "text-xs font-semibold text-zinc-400 hover:text-white transition-colors",
+
+  wrapperPix: "flex flex-col gap-4",
+  qrWrapper: "flex justify-center",
+  qrImagem: "w-48 h-48 object-contain rounded-lg border border-zinc-600 bg-white p-2",
+  qrExpirado: "opacity-30 grayscale",
+
+  tempoAtivo: "text-center text-sm font-mono font-semibold text-zinc-300",
+  tempoExpirado: "text-center text-sm font-mono font-semibold text-red-400",
+
+  pixCopiaWrapper: "flex flex-col gap-2",
+  campoPix: "w-full text-xs p-2.5 border border-zinc-600 rounded-lg bg-zinc-900 text-zinc-200 select-all",
+
+  avisoAtualizacao: "text-[11px] text-center text-zinc-400",
+};

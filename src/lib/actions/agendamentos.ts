@@ -8,8 +8,9 @@ import {
   criarAgendamento as criarAgendamentoDb,
   marcarPresencaConfirmada,
   criarBloqueioDb,
+  excluirBloqueioDb, 
 } from "@/lib/db/agendamentos";
-import { buscarOuCriarCliente } from "@/lib/db/clientes";
+import { buscarOuCriarCliente, criarVeiculo } from "@/lib/db/clientes";
 import {
   criarPagamentoPendente,
   registrarBaixaManual,
@@ -152,11 +153,6 @@ export async function confirmarPresenca(agendamentoId: string) {
   revalidatePath(`/acompanhar/${agendamentoId}`);
 }
 
-/**
- * Finaliza o serviço com pagamento via Pix: reaproveita cobrança existente
- * (evita duplicidade no Mercado Pago) ou gera uma nova e persiste QR code,
- * copia-e-cola e expiração pra reexibição posterior.
- */
 export async function finalizarComPix(agendamentoId: string) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) throw new Error("Não autorizado");
@@ -230,19 +226,31 @@ export async function finalizarComBaixaManual(params: {
   revalidatePath("/agenda");
 }
 
+/**
+ * Cria agendamento vindo do painel do admin.
+ * - Cliente: usa "clienteId" (selecionado no autocomplete) OU cria novo via nome+telefone.
+ * - Veículo: usa "veiculoId" (selecionado do cliente existente) OU cria novo via
+ *   "veiculoModeloNovo" (texto livre, tanto pra cliente novo quanto pra "+ novo veículo").
+ */
 export async function criarAgendamentoPeloAdmin(formData: FormData) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) throw new Error("Não autorizado");
 
+  const clienteIdExistente = formData.get("clienteId") as string | null;
   const nome = formData.get("nome") as string;
   const telefone = formData.get("telefone") as string;
   const servicoId = formData.get("servicoId") as string;
   const data = formData.get("data") as string;
   const hora = formData.get("hora") as string;
 
+  const veiculoIdExistente = formData.get("veiculoId") as string | null;
+  const veiculoModeloNovo = formData.get("veiculoModeloNovo") as string | null;
+
   const dataHora = new Date(`${data}T${hora}:00`);
 
-  const clienteId = await buscarOuCriarCliente(lojaId, { nome, telefone });
+  const clienteId = clienteIdExistente
+    ? clienteIdExistente
+    : await buscarOuCriarCliente(lojaId, { nome, telefone });
 
   const servico = await buscarServico(servicoId, lojaId);
   if (!servico) throw new Error("Serviço não encontrado");
@@ -257,9 +265,17 @@ export async function criarAgendamentoPeloAdmin(formData: FormData) {
     throw new Error("Horário indisponível ou conflita com outro agendamento.");
   }
 
+  let veiculoId: string | undefined;
+  if (veiculoIdExistente) {
+    veiculoId = veiculoIdExistente;
+  } else if (veiculoModeloNovo && veiculoModeloNovo.trim()) {
+    veiculoId = await criarVeiculo(clienteId, { modelo: veiculoModeloNovo.trim() });
+  }
+
   await criarAgendamentoDb({
     lojaId,
     clienteId,
+    veiculoId,
     servicoId: servico.id,
     dataHora,
     duracaoMinutos: servico.duracao_minutos,
@@ -273,15 +289,23 @@ export async function criarBloqueioPeloAdmin(formData: FormData) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) throw new Error("Não autorizado");
 
-  const data = formData.get("data") as string;
-  const horaInicio = formData.get("horaInicio") as string;
-  const horaFim = formData.get("horaFim") as string;
+  const inicioISO = formData.get("inicioISO") as string;
+  const fimISO = formData.get("fimISO") as string;
   const motivo = formData.get("motivo") as string;
 
-  const inicio = new Date(`${data}T${horaInicio}:00`);
-  const fim = new Date(`${data}T${horaFim}:00`);
+  const inicio = new Date(inicioISO);
+  const fim = new Date(fimISO);
 
   await criarBloqueioDb({ lojaId, inicio, fim, motivo });
+
+  revalidatePath("/agenda");
+}
+
+export async function excluirBloqueioPeloAdmin(id: string) {
+  const lojaId = await obterLojaLogadaId();
+  if (!lojaId) throw new Error("Não autorizado");
+
+  await excluirBloqueioDb(id, lojaId);
 
   revalidatePath("/agenda");
 }

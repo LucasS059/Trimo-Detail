@@ -1,11 +1,11 @@
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    agendado: "bg-blue-100 text-blue-700 border-blue-200",
-    em_andamento: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    aguardando_pagamento: "bg-orange-100 text-orange-700 border-orange-200",
-    concluido: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    cancelado: "bg-red-100 text-red-700 border-red-200",
-    nao_compareceu: "bg-zinc-100 text-zinc-700 border-zinc-200",
+    agendado: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    em_andamento: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+    aguardando_pagamento: "bg-[#E56B25]/15 text-[#E56B25] border-[#E56B25]/30",
+    concluido: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    cancelado: "bg-red-500/15 text-red-400 border-red-500/30",
+    nao_compareceu: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
   };
 
   const labels: Record<string, string> = {

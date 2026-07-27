@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import type { ReactNode } from "react";
 
 export function Modal({
   aberto,
@@ -13,7 +14,7 @@ export function Modal({
   onFechar: () => void;
   titulo: string;
   maxWidth?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   useEffect(() => {
     if (!aberto) return;
@@ -33,12 +34,12 @@ export function Modal({
   return (
     <div
       onClick={(e) => e.target === e.currentTarget && onFechar()}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
     >
-      <div className={`bg-white rounded-2xl w-full ${maxWidth} shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
-        <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-zinc-900">{titulo}</h2>
-          <button onClick={onFechar} aria-label="Fechar" className="text-zinc-400 hover:text-zinc-700 transition-colors">
+      <div className={`bg-zinc-800 border border-zinc-700 rounded-2xl w-full ${maxWidth} shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200`}>
+        <div className="px-6 py-4 border-b border-zinc-700 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white">{titulo}</h2>
+          <button onClick={onFechar} aria-label="Fechar" className="text-zinc-500 hover:text-white transition-colors">
             ✕
           </button>
         </div>

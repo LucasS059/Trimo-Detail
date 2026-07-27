@@ -6,6 +6,7 @@ import {
   atualizarCliente,
   deletarCliente,
   listarClientes,
+  listarVeiculosDoCliente,
 } from "@/lib/db/clientes";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { revalidatePath } from "next/cache";
@@ -60,4 +61,28 @@ export async function deletarClienteAction(clienteId: string) {
 
   await deletarCliente(clienteId);
   revalidatePath("/(admin)/clientes");
+}
+
+/**
+ * Busca leve pro autocomplete do modal de agendamento — reaproveita
+ * listarClientes já existente, sem paginação, limitando a 8 resultados.
+ */
+export async function buscarClientesAutocompleteAction(termo: string) {
+  const lojaId = await obterLojaLogadaId();
+  if (!lojaId) throw new Error("Não autenticado");
+
+  if (termo.trim().length < 2) return [];
+
+  const { dados } = await listarClientes(lojaId, termo, 1, 8);
+  return dados.map((c) => ({ id: c.id, nome: c.nome, telefone: c.telefone }));
+}
+
+export async function listarVeiculosClienteAction(clienteId: string) {
+  const lojaId = await obterLojaLogadaId();
+  if (!lojaId) throw new Error("Não autenticado");
+
+  const cliente = await buscarClientePorId(clienteId);
+  if (!cliente || cliente.loja_id !== lojaId) throw new Error("Cliente não encontrado");
+
+  return await listarVeiculosDoCliente(clienteId);
 }

@@ -1,4 +1,4 @@
-import { listarAgendamentosPorPeriodo } from "@/lib/db/agendamentos";
+import { listarAgendamentosPorPeriodo, listarBloqueiosAtivos } from "@/lib/db/agendamentos";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
 import { AgendaLista } from "@/components/agenda/agenda-lista";
@@ -39,25 +39,26 @@ export default async function AgendaPage({
     [lojaId]
   );
 
-  return (
-    <div className="min-h-screen bg-[#FAFAF8] -m-6 p-6 sm:-m-8 sm:p-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-zinc-900">Agenda</h1>
-            <p className="text-sm font-medium text-zinc-500 mt-1">
-              Acompanhe os atendimentos do dia e da semana
-            </p>
-          </div>
+  const bloqueios = await listarBloqueiosAtivos(lojaId);
 
-          <div className="flex items-center gap-3">
-            <ModalBloquearHorario />
-            <ModalNovoAgendamento servicos={servicos} />
-          </div>
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-white">Agenda</h1>
+          <p className="text-sm font-medium text-zinc-400 mt-1">
+            Acompanhe os atendimentos do dia e da semana
+          </p>
         </div>
 
-        <AgendaLista agendamentos={agendamentos} dataAtual={dataISOString} />
+        <div className="flex items-center gap-3">
+=          <ModalBloquearHorario bloqueios={bloqueios} />
+          
+          <ModalNovoAgendamento servicos={servicos} />
+        </div>
       </div>
+
+      <AgendaLista agendamentos={agendamentos} dataAtual={dataISOString} />
     </div>
   );
 }

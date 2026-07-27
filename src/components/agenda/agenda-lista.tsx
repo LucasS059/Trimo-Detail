@@ -8,10 +8,10 @@ import { AgendamentoModal, type AgendamentoDetalhe } from "@/components/agenda/a
 // --- estilos reaproveitados, isolados do JSX ---
 const cx = {
   diaBotao: "relative py-2.5 rounded-xl text-center transition-all flex flex-col items-center justify-center gap-0.5",
-  card: "w-full text-left bg-white border border-zinc-200 rounded-2xl p-5 flex items-center justify-between gap-4 hover:border-zinc-300 transition-colors",
-  horario: "text-xl font-bold text-zinc-900 font-mono tabular-nums block leading-none",
+  card: "w-full text-left bg-zinc-800 border border-zinc-700 rounded-2xl p-5 flex items-center justify-between gap-4 hover:border-zinc-600 transition-colors",
+  horario: "text-xl font-bold text-white font-mono tabular-nums block leading-none",
   navBotao:
-    "w-9 h-9 flex items-center justify-center rounded-full border border-zinc-200 bg-white hover:border-zinc-300 text-zinc-500 hover:text-zinc-900 transition-colors",
+    "w-9 h-9 flex items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 hover:border-zinc-600 text-zinc-400 hover:text-white transition-colors",
 };
 
 export function AgendaLista({
@@ -54,9 +54,9 @@ export function AgendaLista({
   }
 
   const diasSemana = gerarDiasDaSemana();
-  const totalDoDia = agendamentos
-    .filter((a) => a.status !== "cancelado")
-    .reduce((soma, a) => soma + Number(a.valor), 0);
+  const agendamentosValidos = agendamentos.filter((a) => a.status !== "cancelado");
+  const totalDoDia = agendamentosValidos.reduce((soma, a) => soma + Number(a.valor), 0);
+  const aguardandoPagamento = agendamentosValidos.filter((a) => a.status === "aguardando_pagamento").length;
 
   return (
     <div>
@@ -67,7 +67,7 @@ export function AgendaLista({
           </button>
 
           <div>
-            <h2 className="text-[15px] font-bold text-zinc-900 capitalize leading-tight">
+            <h2 className="text-[15px] font-bold text-white capitalize leading-tight">
               {dataSelecionada.toLocaleDateString("pt-BR", { weekday: "long" })}
             </h2>
             <p className="text-xs font-medium text-zinc-400 leading-tight">
@@ -82,22 +82,37 @@ export function AgendaLista({
           {!ehHoje && (
             <button
               onClick={irParaHoje}
-              className="ml-1 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors"
+              className="ml-1 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors"
             >
               Hoje
             </button>
           )}
         </div>
+      </div>
 
-        {agendamentos.length > 0 && (
-          <div className="text-right">
+      {/* Resumo do dia — o que o dono quer ver de cara */}
+      {agendamentosValidos.length > 0 && (
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3.5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Previsto no dia</p>
-            <p className="text-lg font-bold text-zinc-900 font-mono tabular-nums leading-tight">
+            <p className="text-xl font-black text-white font-mono tabular-nums mt-0.5">
               R$ {totalDoDia.toFixed(2).replace(".", ",")}
             </p>
           </div>
-        )}
-      </div>
+          <div className="bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Carros agendados</p>
+            <p className="text-xl font-black text-white font-mono tabular-nums mt-0.5">
+              {agendamentosValidos.length}
+            </p>
+          </div>
+          <div className="bg-zinc-800 border border-zinc-700 rounded-2xl px-4 py-3.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Aguardando pagto.</p>
+            <p className={`text-xl font-black font-mono tabular-nums mt-0.5 ${aguardandoPagamento > 0 ? "text-[#E56B25]" : "text-white"}`}>
+              {aguardandoPagamento}
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-7 gap-1.5 mb-8">
         {diasSemana.map((d) => {
@@ -110,30 +125,34 @@ export function AgendaLista({
               key={d.toISOString()}
               onClick={() => selecionarData(d)}
               className={`${cx.diaBotao} ${
-                isSelected ? "bg-zinc-900 text-white" : "bg-white text-zinc-600 border border-zinc-200 hover:border-zinc-300"
+                isSelected
+                  ? "bg-[#E56B25] text-white"
+                  : "bg-zinc-800 text-zinc-300 border border-zinc-700 hover:border-zinc-600"
               }`}
             >
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">{nomeDia}</span>
+              <span className={`text-[10px] font-semibold uppercase tracking-wide ${isSelected ? "text-white/70" : "text-zinc-500"}`}>
+                {nomeDia}
+              </span>
               <span className="text-base font-bold tabular-nums">{d.getDate()}</span>
-              {isHoje && !isSelected && <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-zinc-400" />}
+              {isHoje && !isSelected && <span className="absolute bottom-1.5 w-1 h-1 rounded-full bg-[#E56B25]" />}
             </button>
           );
         })}
       </div>
 
       {agendamentos.length === 0 ? (
-        <div className="bg-white border border-dashed border-zinc-200 rounded-2xl py-16 text-center">
+        <div className="bg-zinc-800/50 border border-dashed border-zinc-700 rounded-2xl py-16 text-center">
           <p className="text-sm font-semibold text-zinc-400">Nenhum atendimento agendado</p>
-          <p className="text-xs text-zinc-400 mt-1">O dia está livre — use "Novo agendamento" para preencher a agenda.</p>
+          <p className="text-xs text-zinc-500 mt-1">O dia está livre — use "Novo agendamento" para preencher a agenda.</p>
         </div>
       ) : (
         <div className="relative pl-6">
-          <div className="absolute left-[7px] top-2 bottom-2 w-px bg-zinc-200" />
+          <div className="absolute left-[7px] top-2 bottom-2 w-px bg-zinc-700" />
 
           <div className="flex flex-col gap-4">
             {agendamentos.map((ag) => (
               <div key={ag.id} className="relative">
-                <span className="absolute -left-6 top-2 w-3 h-3 rounded-full ring-4 ring-[#FAFAF8] bg-zinc-300" />
+                <span className="absolute -left-6 top-2 w-3 h-3 rounded-full ring-4 ring-zinc-900 bg-zinc-600" />
 
                 <button className={cx.card} onClick={() => setSelecionadoId(ag.id)}>
                   <div className="flex items-center gap-5 min-w-0">
@@ -145,17 +164,17 @@ export function AgendaLista({
 
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2.5 flex-wrap">
-                        <span className="font-semibold text-zinc-900 text-[15px] truncate">{ag.cliente_nome}</span>
+                        <span className="font-semibold text-white text-[15px] truncate">{ag.cliente_nome}</span>
                         <StatusBadge status={ag.status} />
                       </div>
-                      <p className="text-sm text-zinc-500 truncate">
+                      <p className="text-sm text-zinc-400 truncate">
                         {ag.servico_nome}
                         {ag.veiculo_modelo ? ` · ${ag.veiculo_modelo}` : ""}
                       </p>
                     </div>
                   </div>
 
-                  <span className="text-base font-bold text-zinc-900 font-mono tabular-nums shrink-0">
+                  <span className="text-base font-bold text-white font-mono tabular-nums shrink-0">
                     R$ {Number(ag.valor).toFixed(2).replace(".", ",")}
                   </span>
                 </button>

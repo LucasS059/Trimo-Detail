@@ -9,9 +9,6 @@ export type CobrancaPix = {
 
 /**
  * Cria uma cobrança Pix no Mercado Pago.
- * Cada chamada gera um pagamento novo — o controle de reaproveitamento
- * (não gerar Pix duplicado) é feito ANTES de chamar essa função,
- * em finalizarComPix (lib/actions/agendamentos.ts).
  */
 export async function gerarCobrancaPix(dados: {
   valor: number;
@@ -40,7 +37,6 @@ export async function gerarCobrancaPix(dados: {
         payment_method_id: "pix",
         payer: { email: dados.emailPagador },
         date_of_expiration: dataExpiracao.toISOString(),
-        // precisa bater com app/api/mercadopago/webhook/route.ts
         notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/mercadopago/webhook`,
       }),
     });
@@ -78,7 +74,7 @@ export async function gerarCobrancaPix(dados: {
   };
 }
 
-/** Busca o pagamento direto na API do Mercado Pago — usado pelo webhook pra confirmar antes de aceitar. */
+/** Busca o pagamento direto na API do Mercado Pago. */
 export async function consultarPagamento(paymentId: string, accessToken: string) {
   const response = await fetch(`${MP_API_BASE}/v1/payments/${paymentId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -86,6 +82,37 @@ export async function consultarPagamento(paymentId: string, accessToken: string)
 
   if (!response.ok) {
     throw new Error(`Falha ao consultar pagamento ${paymentId} no Mercado Pago`);
+  }
+
+  return response.json();
+}
+
+/** Envia a ordem de pagamento direto para a maquininha física (Point). */
+export async function criarOrdemPoint(dados: {
+  deviceId: string;
+  valor: number;
+  descricao: string;
+  accessToken: string;
+}) {
+  const response = await fetch(`${MP_API_BASE}/v1/orders`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${dados.accessToken}`,
+      "X-Idempotency-Key": crypto.randomUUID(),
+    },
+    body: JSON.stringify({
+      device_id: dados.deviceId,
+      type: "pos",
+      amount: Number(dados.valor.toFixed(2)),
+      description: dados.descricao,
+    }),
+  });
+
+  if (!response.ok) {
+    const erroTxt = await response.text();
+    console.error("Erro do Mercado Pago Point:", response.status, erroTxt);
+    throw new Error("Não foi possível enviar a cobrança para a maquininha. Verifique se o ID do dispositivo está correto.");
   }
 
   return response.json();

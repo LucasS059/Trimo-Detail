@@ -12,6 +12,8 @@ import {
   finalizarComBaixaManual,
   finalizarComPix,
 } from "@/lib/actions/agendamentos";
+import { criarOrdemPoint } from "@/lib/mercadopago/client"; 
+import { toast } from "sonner";
 
 export type AgendamentoDetalhe = {
   id: string;
@@ -27,6 +29,8 @@ export type AgendamentoDetalhe = {
   pix_qr_code: string | null;
   pix_copia_cola: string | null;
   pix_expira_em: string | null;
+  loja_access_token?: string | null; 
+  loja_device_id?: string | null;   
 };
 
 type Etapa = "detalhe" | "pagamento" | "pix";
@@ -110,9 +114,37 @@ export function AgendamentoModal({
     startTransition(async () => {
       try {
         await finalizarComBaixaManual({ agendamentoId: agendamento.id, detalhe });
+        toast.success("Pagamento registrado com sucesso!");
         onFechar();
       } catch (e) {
         setErro(e instanceof Error ? e.message : "Não foi possível registrar o pagamento.");
+      }
+    });
+  }
+
+  function escolherMaquininhaPoint() {
+    if (!agendamento) return;
+
+    if (!agendamento.loja_device_id || !agendamento.loja_access_token) {
+      setErro("A maquininha Point não está configurada. Vá em Configurações > Pagamentos e informe o Device ID.");
+      return;
+    }
+
+    setErro(null);
+    startTransition(async () => {
+      try {
+        await criarOrdemPoint({
+          deviceId: agendamento.loja_device_id!,
+          valor: Number(agendamento.valor),
+          descricao: `${agendamento.servico_nome} - ${agendamento.cliente_nome}`,
+          accessToken: agendamento.loja_access_token!,
+        });
+
+        toast.success("Cobrança enviada! Verifique a maquininha na bancada.");
+        await mudarStatusAgendamento(agendamento.id, "aguardando_pagamento");
+        onFechar();
+      } catch (e) {
+        setErro(e instanceof Error ? e.message : "Erro ao acionar a maquininha Point.");
       }
     });
   }
@@ -216,13 +248,20 @@ export function AgendamentoModal({
                 <span className={styles.metodoLabel}>Pix</span>
                 <span className={styles.metodoDetalhe}>{pending ? "Gerando..." : "QR Code e copia e cola"}</span>
               </button>
+
+              {/* Botão da Maquininha Point Integrada */}
+              <button className={styles.metodoBotao} disabled={pending} onClick={escolherMaquininhaPoint}>
+                <span className={styles.metodoLabel}>Maquininha Point (Automática)</span>
+                <span className={styles.metodoDetalhe}>{pending ? "Acionando..." : "Disparar para o aparelho"}</span>
+              </button>
+
               <button className={styles.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("dinheiro")}>
                 <span className={styles.metodoLabel}>Dinheiro</span>
                 <span className={styles.metodoDetalhe}>Baixa manual</span>
               </button>
               <button className={styles.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("cartao")}>
-                <span className={styles.metodoLabel}>Cartão</span>
-                <span className={styles.metodoDetalhe}>Máquina própria</span>
+                <span className={styles.metodoLabel}>Cartão (Outra máquina)</span>
+                <span className={styles.metodoDetalhe}>Baixa manual</span>
               </button>
             </div>
 

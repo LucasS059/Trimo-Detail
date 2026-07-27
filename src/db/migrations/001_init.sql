@@ -1,4 +1,5 @@
--- db/migrations/001_init.sql (Versão Definitiva Completa)
+-- db/migrations/001_init.sql
+-- Estrutura inicial do banco: lojas (tenants), clientes, veículos, serviços, agendamentos e pagamentos.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -25,7 +26,7 @@ CREATE TABLE lojas (
   mercadopago_user_id TEXT,
 
   -- plano/cobrança
-  plano TEXT NOT NULL DEFAULT 'gratuito',
+  plano TEXT NOT NULL DEFAULT 'gratuito', -- 'gratuito' | 'pago'
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -43,7 +44,7 @@ CREATE TABLE horarios_funcionamento (
   UNIQUE (loja_id, dia_semana)
 );
 
--- Bloqueios manuais de horário
+-- Bloqueios manuais de horário (folgas, compromissos fora do sistema)
 CREATE TABLE bloqueios_horario (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
@@ -60,7 +61,6 @@ CREATE TABLE clientes (
   telefone TEXT NOT NULL,
   email TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (loja_id, telefone)
 );
 
@@ -84,6 +84,7 @@ CREATE TABLE servicos (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- status do agendamento controlado por CHECK, sem tabela de lookup (poucos valores fixos)
 CREATE TABLE agendamentos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
@@ -112,13 +113,10 @@ CREATE TABLE pagamentos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agendamento_id UUID NOT NULL REFERENCES agendamentos(id) ON DELETE CASCADE,
   forma TEXT NOT NULL CHECK (forma IN ('pix', 'point', 'manual')),
-  forma_manual_detalhe TEXT,
+  forma_manual_detalhe TEXT, -- ex: 'dinheiro', 'cartao_fora_do_sistema' quando forma = 'manual'
   valor NUMERIC(10, 2) NOT NULL,
   status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'confirmado', 'falhou')),
   mercadopago_payment_id TEXT,
-  qr_code_base64 TEXT,
-  copia_e_cola TEXT,
-  expira_em TIMESTAMPTZ,
   confirmado_em TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

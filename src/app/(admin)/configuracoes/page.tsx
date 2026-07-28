@@ -7,12 +7,13 @@ export default async function ConfiguracoesPage() {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) redirect("/login");
 
-  // 1. Busca os dados da loja
   const { rows: lojaRows } = await pool.query(
     `SELECT nome, slug, nome_dono, descricao, imagem_url, endereco,
             antecedencia_minima_minutos, prazo_cancelamento_minutos,
             lembrete_confirmacao_minutos, dias_futuros_visiveis,
-            mercadopago_user_id,
+            mercadopago_user_id, mercadopago_device_id,
+            taxa_debito_percentual, taxa_credito_percentual,
+            fuso_horario,
             (mercadopago_access_token IS NOT NULL) AS tem_mercadopago_configurado
      FROM lojas WHERE id = $1`,
     [lojaId]
@@ -27,17 +28,7 @@ export default async function ConfiguracoesPage() {
     [lojaId]
   );
 
-  const { rows } = await pool.query(
-    `SELECT nome, slug, nome_dono, descricao, imagem_url, endereco,
-            antecedencia_minima_minutos, prazo_cancelamento_minutos,
-            lembrete_confirmacao_minutos, dias_futuros_visiveis,
-            mercadopago_user_id, mercadopago_device_id,
-            taxa_debito_percentual, taxa_credito_percentual,
-            (mercadopago_access_token IS NOT NULL) AS tem_mercadopago_configurado
-     FROM lojas WHERE id = $1`,
-    [lojaId]
-  );
-
+  // Se a loja não tem horários cadastrados (primeiro login), cria o padrão
   if (horarios.length === 0) {
     const padrao = [
       { dia: 0, abertura: "08:00", fechamento: "18:00", fechado: true },  // Domingo

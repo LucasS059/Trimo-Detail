@@ -6,7 +6,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const VARIANTES = {
-  primary: "bg-[#E56B25] text-white hover:bg-[#cf5818]",
+  primary: "bg-[var(--brand,#E56B25)] text-white hover:brightness-90",
   secondary: "bg-zinc-700 text-zinc-100 border border-zinc-600 hover:bg-zinc-600",
   danger: "bg-red-600 text-white hover:bg-red-700",
 };
@@ -16,11 +16,11 @@ const TAMANHOS = {
   sm: "px-3 py-1.5 text-xs",
 };
 
-export function Button({ 
-  variant = "primary", 
-  size = "default", 
-  className = "", 
-  ...props 
+export function Button({
+  variant = "primary",
+  size = "default",
+  className = "",
+  ...props
 }: ButtonProps) {
   return (
     <button

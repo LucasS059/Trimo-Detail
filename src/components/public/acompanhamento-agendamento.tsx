@@ -15,6 +15,7 @@ type Agendamento = {
   servico_nome: string;
   loja_nome: string;
   valor: string;
+  cor_primaria?: string | null;
 };
 
 export function AcompanhamentoAgendamento({ agendamento }: { agendamento: Agendamento }) {
@@ -32,42 +33,56 @@ export function AcompanhamentoAgendamento({ agendamento }: { agendamento: Agenda
   }
 
   return (
-    <div className="max-w-md mx-auto py-10 px-4">
-      <p className="text-sm text-gray-500 mb-1">{agendamento.loja_nome}</p>
-      <h1 className="text-xl font-semibold mb-4">Seu agendamento</h1>
+    <div
+      className="min-h-screen bg-zinc-950"
+      style={{ ["--brand" as any]: agendamento.cor_primaria || "#E56B25" }}
+    >
+      <div className="max-w-md mx-auto py-10 px-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-1">{agendamento.loja_nome}</p>
+        <h1 className="text-xl font-black text-white mb-5">Seu agendamento</h1>
 
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-3">
-          <StatusBadge status={agendamento.status} />
-          {agendamento.presenca_confirmada && (
-            <span className="text-xs text-green-600">Presença confirmada</span>
-          )}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <StatusBadge status={agendamento.status} />
+            {agendamento.presenca_confirmada && (
+              <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+                Presença confirmada
+              </span>
+            )}
+          </div>
+
+          <p className="font-semibold text-white text-base">{agendamento.servico_nome}</p>
+          <p className="text-sm text-zinc-400 mt-1 capitalize">
+            {new Date(agendamento.data_hora).toLocaleString("pt-BR", {
+              dateStyle: "long",
+              timeStyle: "short",
+            })}
+          </p>
+          <p className="text-lg font-bold text-white font-mono tabular-nums mt-3">
+            R$ {Number(agendamento.valor).toFixed(2).replace(".", ",")}
+          </p>
         </div>
 
-        <p className="font-medium">{agendamento.servico_nome}</p>
-        <p className="text-sm text-gray-600">
-          {new Date(agendamento.data_hora).toLocaleString("pt-BR", {
-            dateStyle: "long",
-            timeStyle: "short",
-          })}
-        </p>
-        <p className="text-sm text-gray-500 mt-1">
-          R$ {Number(agendamento.valor).toFixed(2).replace(".", ",")}
+        {podeAgir && (
+          <div className="flex flex-col gap-2.5 mt-5">
+            {!agendamento.presenca_confirmada && (
+              <Button disabled={pending} onClick={confirmar}>
+                Confirmar presença
+              </Button>
+            )}
+            <Button variant="danger" disabled={pending} onClick={cancelar}>
+              Cancelar agendamento
+            </Button>
+          </div>
+        )}
+
+        <p className="text-center text-[11px] text-zinc-600 mt-10">
+          Agendamento online via Trimo Detail
         </p>
       </div>
-
-      {podeAgir && (
-        <div className="flex flex-col gap-2 mt-4">
-          {!agendamento.presenca_confirmada && (
-            <Button disabled={pending} onClick={confirmar}>
-              Confirmar presença
-            </Button>
-          )}
-          <Button variant="danger" disabled={pending} onClick={cancelar}>
-            Cancelar agendamento
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

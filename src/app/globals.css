@@ -1,2 +1,11 @@
 /* app/globals.css */
 @import "tailwindcss";
+
+/* Esconde a barra de rolagem visualmente, mantendo o scroll funcional (touch/arraste/roda) */
+.scrollbar-hide {
+  -ms-overflow-style: none;  
+  scrollbar-width: none;     
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;   
+}

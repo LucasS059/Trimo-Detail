@@ -67,14 +67,14 @@ export function ModalBloquearHorario({ bloqueios = [] }: { bloqueios?: Bloqueio[
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="px-4 py-2.5 rounded-xl border border-zinc-700 text-sm font-semibold text-zinc-300 bg-zinc-900 hover:bg-zinc-800 transition-colors shadow-sm"
+        className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-zinc-700 text-sm font-semibold text-zinc-300 bg-zinc-900 hover:bg-zinc-800 transition-colors shadow-sm"
       >
         Gerenciar Bloqueios
       </button>
 
       <Modal aberto={isOpen} onFechar={() => setIsOpen(false)} titulo="Gerenciar Horários Bloqueados" maxWidth="max-w-4xl">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-2">
           
           {/* LADO ESQUERDO: Formulário para NOVO bloqueio */}
           <div className="flex flex-col gap-6">

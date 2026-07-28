@@ -14,6 +14,12 @@ export default async function AgendaPage({
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) redirect("/login");
 
+  const { rows: lojaRows } = await pool.query(
+    `SELECT fuso_horario FROM lojas WHERE id = $1`,
+    [lojaId]
+  );
+  const fusoHorario = lojaRows[0]?.fuso_horario || "America/Sao_Paulo";
+
   const { data } = await searchParams;
 
   let inicioDia: Date;
@@ -26,10 +32,18 @@ export default async function AgendaPage({
     fimDia = new Date(year, month - 1, day, 23, 59, 59, 999);
     dataISOString = data;
   } else {
-    const hoje = new Date();
-    inicioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 0, 0, 0, 0);
-    fimDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 23, 59, 59, 999);
-    dataISOString = hoje.toLocaleDateString("en-CA");
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone: fusoHorario,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+
+    dataISOString = formatter.format(new Date());
+
+    const [year, month, day] = dataISOString.split("-").map(Number);
+    inicioDia = new Date(year, month - 1, day, 0, 0, 0, 0);
+    fimDia = new Date(year, month - 1, day, 23, 59, 59, 999);
   }
 
   const agendamentos = await listarAgendamentosPorPeriodo(lojaId, inicioDia, fimDia);
@@ -42,23 +56,26 @@ export default async function AgendaPage({
   const bloqueios = await listarBloqueiosAtivos(lojaId);
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8">
         <div>
-          <h1 className="text-2xl font-black tracking-tight text-white">Agenda</h1>
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">Agenda</h1>
           <p className="text-sm font-medium text-zinc-400 mt-1">
             Acompanhe os atendimentos do dia e da semana
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-=          <ModalBloquearHorario bloqueios={bloqueios} />
-          
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <ModalBloquearHorario bloqueios={bloqueios} />
           <ModalNovoAgendamento servicos={servicos} />
         </div>
       </div>
 
-      <AgendaLista agendamentos={agendamentos} dataAtual={dataISOString} />
+      <AgendaLista
+        agendamentos={agendamentos}
+        dataAtual={dataISOString}
+        fusoHorario={fusoHorario}
+      />
     </div>
   );
 }

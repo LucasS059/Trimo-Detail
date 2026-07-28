@@ -1,8 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from 'sonner';
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trimodetail.com.br';
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#0a0a0a",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),

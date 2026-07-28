@@ -114,7 +114,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: any[] }) {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="px-4 py-2.5 rounded-xl bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-bold transition-colors shadow-lg shadow-[#E56B25]/20 flex items-center gap-2"
+        className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-bold transition-colors shadow-lg shadow-[#E56B25]/20 flex items-center justify-center gap-2"
       >
         <span>+</span> Novo agendamento
       </button>

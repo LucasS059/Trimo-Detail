@@ -6,18 +6,23 @@ import { revalidatePath } from "next/cache";
 import { pool } from "../db/client";
 
 export async function salvarConfiguracoesAction(dados: {
-  nome: string;
-  slug: string;
-  nome_dono: string | null;
-  descricao: string | null;
-  imagem_url: string | null;
-  endereco: string | null;
-  antecedencia_minima_minutos: number;
-  prazo_cancelamento_minutos: number;
-  lembrete_confirmacao_minutos: number;
-  dias_futuros_visiveis: number;
+  nome?: string;
+  slug?: string;
+  nome_dono?: string | null;
+  descricao?: string | null;
+  imagem_url?: string | null;
+  endereco?: string | null;
+  antecedencia_minima_minutos?: number;
+  prazo_cancelamento_minutos?: number;
+  lembrete_confirmacao_minutos?: number;
+  dias_futuros_visiveis?: number;
   mercadopago_access_token?: string;
   mercadopago_user_id?: string | null;
+  mercadopago_device_id?: string | null;
+  taxa_debito_percentual?: number;
+  taxa_credito_percentual?: number;
+  fuso_horario?: string;
+  cor_primaria?: string;
 }) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) throw new Error("Não autenticado");
@@ -29,13 +34,15 @@ export async function salvarConfiguracoesAction(dados: {
     }
   }
 
-  const { mercadopago_access_token, mercadopago_user_id, ...resto } = dados;
+  const dadosParaAtualizar: Record<string, unknown> = {};
 
-  await atualizarConfiguracoesLoja(lojaId, {
-    ...resto,
-    ...(mercadopago_access_token ? { mercadopago_access_token } : {}),
-    ...(mercadopago_user_id ? { mercadopago_user_id } : {}),
+  Object.entries(dados).forEach(([chave, valor]) => {
+    if (valor !== undefined) {
+      dadosParaAtualizar[chave] = valor;
+    }
   });
+
+  await atualizarConfiguracoesLoja(lojaId, dadosParaAtualizar);
 
   revalidatePath("/configuracoes");
 }

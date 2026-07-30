@@ -1,3 +1,5 @@
+import "server-only"; 
+
 const MP_API_BASE = "https://api.mercadopago.com";
 
 export type CobrancaPix = {

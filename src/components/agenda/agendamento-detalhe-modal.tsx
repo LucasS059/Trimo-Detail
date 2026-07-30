@@ -11,9 +11,11 @@ import {
   cancelarAgendamentoPeloDono,
   finalizarComBaixaManual,
   finalizarComPix,
+  finalizarComPoint,
 } from "@/lib/actions/agendamentos";
-import { criarOrdemPoint } from "@/lib/mercadopago/client"; 
 import { toast } from "sonner";
+
+export type ServicoDoAgendamento = { id: string; nome: string; preco: number; duracaoMinutos: number };
 
 export type AgendamentoDetalhe = {
   id: string;
@@ -22,15 +24,13 @@ export type AgendamentoDetalhe = {
   valor: string;
   cliente_nome: string;
   cliente_telefone: string;
-  servico_nome: string;
+  servicos: ServicoDoAgendamento[];
   veiculo_modelo: string | null;
   veiculo_placa: string | null;
   veiculo_cor: string | null;
   pix_qr_code: string | null;
   pix_copia_cola: string | null;
   pix_expira_em: string | null;
-  loja_access_token?: string | null; 
-  loja_device_id?: string | null;   
 };
 
 type Etapa = "detalhe" | "pagamento" | "pix";
@@ -46,390 +46,263 @@ export function AgendamentoModal({
   agendamentoId: string | null;
   onFechar: () => void;
 }) {
-  const agendamento = agendamentos.find((a) => a.id === agendamentoId) ?? null;
   const [pending, startTransition] = useTransition();
   const [etapa, setEtapa] = useState<Etapa>("detalhe");
-  const [dadosPix, setDadosPix] = useState<DadosPix | null>(null);
-  const [erro, setErro] = useState<string | null>(null);
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
+  
+  const [detalhePagamentoManual, setDetalhePagamentoManual] = useState("dinheiro");
+  const [dadosPix, setDadosPix] = useState<DadosPix | null>(null);
+
+  const agendamento = agendamentos.find((a) => a.id === agendamentoId);
 
   useEffect(() => {
-    if (agendamento) {
+    if (agendamentoId) {
       setEtapa("detalhe");
-      setErro(null);
-      setDadosPix(
-        agendamento.pix_qr_code
-          ? {
-              qrCodeBase64: agendamento.pix_qr_code,
-              copiaECola: agendamento.pix_copia_cola ?? undefined,
-              expiraEm: agendamento.pix_expira_em,
-            }
-          : null
-      );
+      setDadosPix(null);
     }
-  }, [agendamento?.id]);
+  }, [agendamentoId]);
 
+  if (!agendamento) return null;
+
+  // Funções com checagem de segurança (agendamento?.id) para satisfazer o TypeScript 100%
   function iniciarAtendimento() {
     if (!agendamento) return;
-    startTransition(() => mudarStatusAgendamento(agendamento.id, "em_andamento"));
+    startTransition(async () => {
+      const res = await mudarStatusAgendamento(agendamento.id, "em_andamento");
+      if (!res.sucesso) toast.error(res.erro);
+      else toast.success("Atendimento iniciado!");
+    });
   }
 
   function marcarProntoParaPagamento() {
     if (!agendamento) return;
-    startTransition(() => mudarStatusAgendamento(agendamento.id, "aguardando_pagamento"));
-  }
-
-  function pedirCancelamento() {
-    setConfirmandoCancelamento(true);
+    startTransition(async () => {
+      const res = await mudarStatusAgendamento(agendamento.id, "aguardando_pagamento");
+      if (!res.sucesso) toast.error(res.erro);
+      else {
+        toast.success("Aguardando pagamento!");
+        setEtapa("pagamento");
+      }
+    });
   }
 
   function confirmarCancelamento() {
     if (!agendamento) return;
-    startTransition(() => cancelarAgendamentoPeloDono(agendamento.id));
-    setConfirmandoCancelamento(false);
-    onFechar();
+    startTransition(async () => {
+      const res = await cancelarAgendamentoPeloDono(agendamento.id);
+      if (!res.sucesso) {
+        toast.error(res.erro);
+      } else {
+        toast.success("Agendamento cancelado com sucesso!");
+        setConfirmandoCancelamento(false);
+        onFechar();
+      }
+    });
   }
 
-  function escolherPix() {
+  function handleBaixaManual() {
     if (!agendamento) return;
-    if (dadosPix?.qrCodeBase64) {
-      setEtapa("pix");
-      return;
-    }
-    setErro(null);
     startTransition(async () => {
-      try {
-        const resultado = await finalizarComPix(agendamento.id);
-        setDadosPix(resultado);
+      const res = await finalizarComBaixaManual(agendamento.id, Number(agendamento.valor), detalhePagamentoManual);
+      if (!res.sucesso) {
+        toast.error(res.erro);
+      } else {
+        toast.success("Pagamento registado e atendimento concluído!");
+        onFechar();
+      }
+    });
+  }
+
+  function handleGerarPix() {
+    if (!agendamento) return;
+    startTransition(async () => {
+      const res = await finalizarComPix(agendamento.id, Number(agendamento.valor));
+      if (!res.sucesso) {
+        toast.error(res.erro);
+      } else {
+        if (res.dados) setDadosPix(res.dados);
         setEtapa("pix");
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : "Não foi possível gerar o Pix.");
+        toast.success("Cobrança Pix gerada!");
       }
     });
   }
 
-  function escolherBaixaManual(detalhe: "dinheiro" | "cartao") {
+  function handlePoint() {
     if (!agendamento) return;
-    setErro(null);
     startTransition(async () => {
-      try {
-        await finalizarComBaixaManual({ agendamentoId: agendamento.id, detalhe });
-        toast.success("Pagamento registrado com sucesso!");
+      const res = await finalizarComPoint(agendamento.id, Number(agendamento.valor));
+      if (!res.sucesso) {
+        toast.error(res.erro);
+      } else {
+        toast.success("Ordem enviada para a maquininha Point!");
         onFechar();
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : "Não foi possível registrar o pagamento.");
       }
     });
   }
-
-  function escolherMaquininhaPoint() {
-    if (!agendamento) return;
-
-    if (!agendamento.loja_device_id || !agendamento.loja_access_token) {
-      setErro("A maquininha Point não está configurada. Vá em Configurações > Pagamentos e informe o Device ID.");
-      return;
-    }
-
-    setErro(null);
-    startTransition(async () => {
-      try {
-        await criarOrdemPoint({
-          deviceId: agendamento.loja_device_id!,
-          valor: Number(agendamento.valor),
-          descricao: `${agendamento.servico_nome} - ${agendamento.cliente_nome}`,
-          accessToken: agendamento.loja_access_token!,
-        });
-
-        toast.success("Cobrança enviada! Verifique a maquininha na bancada.");
-        await mudarStatusAgendamento(agendamento.id, "aguardando_pagamento");
-        onFechar();
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : "Erro ao acionar a maquininha Point.");
-      }
-    });
-  }
-
-  const titulos: Record<Etapa, string> = {
-    detalhe: "Agendamento",
-    pagamento: "Registrar pagamento",
-    pix: "Cobrança Pix",
-  };
 
   return (
-    <>
-      <Modal aberto={agendamento !== null} onFechar={onFechar} titulo={titulos[etapa]} maxWidth="max-w-md">
-        {agendamento && etapa === "detalhe" && (
-          <div className={styles.wrapperDetalhe}>
-            <div className={styles.headerCliente}>
+    <Modal aberto={!!agendamentoId} onFechar={onFechar} titulo="Detalhes do Agendamento">
+      <div className="flex flex-col gap-6 p-1">
+        {etapa === "detalhe" && (
+          <>
+            <div className="flex items-center justify-between bg-zinc-900 border border-zinc-700 p-4 rounded-xl">
               <div>
-                <h3 className={styles.nomeCliente}>{agendamento.cliente_nome}</h3>
-                <p className={styles.telefoneCliente}>{agendamento.cliente_telefone}</p>
+                <p className="text-sm font-bold text-white">{agendamento.cliente_nome}</p>
+                <p className="text-xs text-zinc-400 mt-0.5">{agendamento.cliente_telefone}</p>
               </div>
               <StatusBadge status={agendamento.status} />
             </div>
 
-            {agendamento.veiculo_modelo && (
-              <div className={styles.cardVeiculo}>
-                <p className={styles.veiculoNome}>
-                  {agendamento.veiculo_modelo}
-                  {agendamento.veiculo_cor ? ` - ${agendamento.veiculo_cor}` : ""}
-                </p>
-                {agendamento.veiculo_placa && (
-                  <p className={styles.veiculoPlaca}>{agendamento.veiculo_placa}</p>
-                )}
-              </div>
-            )}
-
-            <div className={styles.gridInfo}>
-              <div>
-                <p className={styles.campoLabel}>Horário</p>
-                <p className={styles.campoValorMono}>
-                  {new Date(agendamento.data_hora).toLocaleTimeString("pt-BR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </p>
-              </div>
-              <div>
-                <p className={styles.campoLabel}>Valor</p>
-                <p className={styles.campoValorMono}>
-                  R$ {Number(agendamento.valor).toFixed(2).replace(".", ",")}
-                </p>
-              </div>
-              <div className={styles.campoServico}>
-                <p className={styles.campoLabel}>Serviço</p>
-                <p className={styles.campoValor}>{agendamento.servico_nome}</p>
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Serviços</p>
+              <div className="bg-zinc-900 border border-zinc-700 rounded-xl divide-y divide-zinc-800">
+                {agendamento.servicos.map((s) => (
+                  <div key={s.id} className="p-3 flex items-center justify-between text-sm">
+                    <span className="text-white font-medium">{s.nome}</span>
+                    <span className="font-mono text-zinc-300">R$ {Number(s.preco).toFixed(2).replace(".", ",")}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            {!["concluido", "cancelado", "nao_compareceu"].includes(agendamento.status) && (
-              <div className={styles.acoes}>
-                {agendamento.status === "agendado" && (
-                  <Button disabled={pending} onClick={iniciarAtendimento} className={styles.acaoPrimaria}>
-                    Iniciar atendimento
-                  </Button>
-                )}
-
-                {agendamento.status === "em_andamento" && (
-                  <Button disabled={pending} onClick={marcarProntoParaPagamento} className={styles.acaoPrimaria}>
-                    Serviço pronto
-                  </Button>
-                )}
-
-                {agendamento.status === "aguardando_pagamento" && (
-                  <Button
-                    disabled={pending}
-                    onClick={() => setEtapa(dadosPix?.qrCodeBase64 ? "pix" : "pagamento")}
-                    className={styles.acaoPrimaria}
-                  >
-                    {dadosPix?.qrCodeBase64 ? "Ver cobrança Pix" : "Registrar pagamento"}
-                  </Button>
-                )}
-
-                <Button variant="secondary" disabled={pending} onClick={pedirCancelamento}>
-                  Cancelar agendamento
-                </Button>
+            {agendamento.veiculo_modelo && (
+              <div className="text-xs text-zinc-400 bg-zinc-900/50 p-3 rounded-lg border border-zinc-800">
+                <span className="font-bold text-white">Veículo:</span> {agendamento.veiculo_modelo} {agendamento.veiculo_placa ? `(${agendamento.veiculo_placa})` : ""}
               </div>
             )}
-          </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-sm text-zinc-400">Valor Total</span>
+              <span className="text-xl font-black text-white font-mono">R$ {Number(agendamento.valor).toFixed(2).replace(".", ",")}</span>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-4 border-t border-zinc-700">
+              {agendamento.status === "agendado" && (
+                <Button disabled={pending} onClick={iniciarAtendimento}>
+                  Iniciar Atendimento
+                </Button>
+              )}
+
+              {agendamento.status === "em_andamento" && (
+                <Button disabled={pending} onClick={marcarProntoParaPagamento}>
+                  Finalizar e Cobrar
+                </Button>
+              )}
+
+              {agendamento.status === "aguardando_pagamento" && (
+                <Button disabled={pending} onClick={() => setEtapa("pagamento")}>
+                  Registar Pagamento
+                </Button>
+              )}
+
+              {agendamento.status !== "cancelado" && agendamento.status !== "concluido" && (
+                <Button variant="danger" disabled={pending} onClick={() => setConfirmandoCancelamento(true)}>
+                  Cancelar Agendamento
+                </Button>
+              )}
+            </div>
+          </>
         )}
 
-        {agendamento && etapa === "pagamento" && (
-          <div className={styles.wrapperPagamento}>
-            <div className={styles.campoResumo}>
-              <span className={styles.resumoNome}>{agendamento.cliente_nome}</span>
-              <span className={styles.resumoValor}>
-                R$ {Number(agendamento.valor).toFixed(2).replace(".", ",")}
-              </span>
+        {etapa === "pagamento" && (
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-zinc-300">Selecione a forma de pagamento recebida:</p>
+            
+            <button
+              onClick={handleGerarPix}
+              disabled={pending}
+              className="w-full p-4 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-left transition-colors flex items-center justify-between"
+            >
+              <div>
+                <p className="text-sm font-bold text-white">Pix Dinâmico</p>
+                <p className="text-xs text-zinc-400">Gera QR Code instantâneo na tela</p>
+              </div>
+              <span className="text-xs font-bold text-[#E56B25]">Gerar</span>
+            </button>
+
+            <button
+              onClick={handlePoint}
+              disabled={pending}
+              className="w-full p-4 rounded-xl border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 text-left transition-colors flex items-center justify-between"
+            >
+              <div>
+                <p className="text-sm font-bold text-white">Maquininha (Point)</p>
+                <p className="text-xs text-zinc-400">Envia o valor direto para o dispositivo</p>
+              </div>
+              <span className="text-xs font-bold text-[#E56B25]">Enviar</span>
+            </button>
+
+            <div className="bg-zinc-900 border border-zinc-700 p-4 rounded-xl space-y-3 mt-2">
+              <p className="text-xs font-bold text-white uppercase tracking-wider">Baixa Manual / Dinheiro / Cartão Externo</p>
+              <select
+                value={detalhePagamentoManual}
+                onChange={(e) => setDetalhePagamentoManual(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg bg-zinc-950 border border-zinc-600 text-white text-sm outline-none"
+              >
+                <option value="dinheiro">Dinheiro</option>
+                <option value="cartao_debito">Cartão de Débito (Externo)</option>
+                <option value="cartao_credito">Cartão de Crédito (Externo)</option>
+                <option value="pix_manual">Pix (Manual / Comprovante)</option>
+              </select>
+              <Button disabled={pending} onClick={handleBaixaManual} className="w-full">
+                Confirmar Recebimento Manual
+              </Button>
             </div>
 
-            <div className={styles.listaMetodos}>
-              <button className={styles.metodoBotao} disabled={pending} onClick={escolherPix}>
-                <span className={styles.metodoLabel}>Pix</span>
-                <span className={styles.metodoDetalhe}>{pending ? "Gerando..." : "QR Code e copia e cola"}</span>
-              </button>
-
-              {/* Botão da Maquininha Point Integrada */}
-              <button className={styles.metodoBotao} disabled={pending} onClick={escolherMaquininhaPoint}>
-                <span className={styles.metodoLabel}>Maquininha Point (Automática)</span>
-                <span className={styles.metodoDetalhe}>{pending ? "Acionando..." : "Disparar para o aparelho"}</span>
-              </button>
-
-              <button className={styles.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("dinheiro")}>
-                <span className={styles.metodoLabel}>Dinheiro</span>
-                <span className={styles.metodoDetalhe}>Baixa manual</span>
-              </button>
-              <button className={styles.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("cartao")}>
-                <span className={styles.metodoLabel}>Cartão (Outra máquina)</span>
-                <span className={styles.metodoDetalhe}>Baixa manual</span>
-              </button>
-            </div>
-
-            {erro && <p className={styles.erro}>{erro}</p>}
-
-            <button className={styles.voltar} onClick={() => setEtapa("detalhe")}>
-              ‹ Voltar
+            <button onClick={() => setEtapa("detalhe")} className="text-xs text-zinc-400 hover:text-white mt-2 text-center">
+              ← Voltar aos detalhes
             </button>
           </div>
         )}
 
-        {agendamento && etapa === "pix" && dadosPix?.qrCodeBase64 && (
-          <ConteudoPix
-            dadosPix={dadosPix}
-            valor={Number(agendamento.valor)}
-            clienteNome={agendamento.cliente_nome}
-            onVoltar={() => setEtapa("detalhe")}
-          />
+        {etapa === "pix" && dadosPix && (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <p className="text-sm font-medium text-zinc-300">Escaneie o QR Code com o aplicativo do banco:</p>
+            {dadosPix.qrCodeBase64 && (
+              <img
+                src={`data:image/png;base64,${dadosPix.qrCodeBase64}`}
+                alt="QR Code Pix"
+                className="w-48 h-48 bg-white p-2 rounded-xl border border-zinc-700 object-contain"
+              />
+            )}
+            {dadosPix.copiaECola && (
+              <div className="w-full space-y-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={dadosPix.copiaECola}
+                  onClick={(e) => e.currentTarget.select()}
+                  className="w-full text-xs p-2.5 bg-zinc-950 border border-zinc-700 rounded-lg text-zinc-400 select-all"
+                />
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    navigator.clipboard.writeText(dadosPix.copiaECola!);
+                    toast.success("Código Pix Copia e Cola copiado!");
+                  }}
+                >
+                  Copiar Código Pix
+                </Button>
+              </div>
+            )}
+            <button onClick={() => setEtapa("detalhe")} className="text-xs text-zinc-400 hover:text-white mt-2">
+              ← Voltar
+            </button>
+          </div>
         )}
-      </Modal>
+      </div>
 
       <ConfirmModal
         aberto={confirmandoCancelamento}
-        titulo="Cancelar agendamento"
-        mensagem={`Tem certeza que deseja cancelar o agendamento de ${agendamento?.cliente_nome ?? ""}? Essa ação não pode ser desfeita.`}
-        textoConfirmar="Cancelar agendamento"
-        textoCancelar="Voltar"
+        titulo="Cancelar Agendamento"
+        mensagem="Tem a certeza de que deseja cancelar este agendamento? Esta ação não pode ser desfeita."
+        textoConfirmar="Sim, cancelar"
         destrutivo
         pending={pending}
         onConfirmar={confirmarCancelamento}
         onFechar={() => setConfirmandoCancelamento(false)}
       />
-    </>
+    </Modal>
   );
 }
-
-function ConteudoPix({
-  dadosPix,
-  valor,
-  clienteNome,
-  onVoltar,
-}: {
-  dadosPix: DadosPix;
-  valor: number;
-  clienteNome: string;
-  onVoltar: () => void;
-}) {
-  const [tempoRestante, setTempoRestante] = useState<string | null>(null);
-  const [expirado, setExpirado] = useState(false);
-
-  useEffect(() => {
-    if (!dadosPix.expiraEm) return;
-    const expiraEmDate = new Date(dadosPix.expiraEm);
-
-    function atualizar() {
-      const diffMs = expiraEmDate.getTime() - Date.now();
-      if (diffMs <= 0) {
-        setExpirado(true);
-        setTempoRestante("Expirado");
-        return;
-      }
-      const min = Math.floor(diffMs / 60000);
-      const seg = Math.floor((diffMs % 60000) / 1000);
-      setTempoRestante(`${min}:${seg.toString().padStart(2, "0")}`);
-    }
-
-    atualizar();
-    const intervalo = setInterval(atualizar, 1000);
-    return () => clearInterval(intervalo);
-  }, [dadosPix.expiraEm]);
-
-  return (
-    <div className={styles.wrapperPix}>
-      <div className={styles.campoResumo}>
-        <span className={styles.resumoNome}>{clienteNome}</span>
-        <span className={styles.resumoValor}>
-          R$ {valor.toFixed(2).replace(".", ",")}
-        </span>
-      </div>
-
-      <div className={styles.qrWrapper}>
-        <img
-          src={`data:image/png;base64,${dadosPix.qrCodeBase64}`}
-          alt="QR Code Pix"
-          className={`${styles.qrImagem} ${expirado ? styles.qrExpirado : ""}`}
-        />
-      </div>
-
-      {tempoRestante && (
-        <p className={expirado ? styles.tempoExpirado : styles.tempoAtivo}>
-          {expirado ? "Cobrança expirada" : `Expira em ${tempoRestante}`}
-        </p>
-      )}
-
-      {dadosPix.copiaECola && (
-        <div className={styles.pixCopiaWrapper}>
-          <input
-            type="text"
-            readOnly
-            value={dadosPix.copiaECola}
-            onClick={(e) => e.currentTarget.select()}
-            className={styles.campoPix}
-          />
-          <Button
-            size="sm"
-            className={`w-full ${styles.acaoPrimaria}`}
-            disabled={expirado}
-            onClick={() => navigator.clipboard.writeText(dadosPix.copiaECola!)}
-          >
-            Copiar código Pix
-          </Button>
-        </div>
-      )}
-
-      <p className={styles.avisoAtualizacao}>
-        A tela atualiza automaticamente quando o pagamento for confirmado.
-      </p>
-
-      <button className={styles.voltar} onClick={onVoltar}>
-        ‹ Voltar
-      </button>
-    </div>
-  );
-}
-
-const styles = {
-  wrapperDetalhe: "flex flex-col gap-5",
-  headerCliente: "flex items-start justify-between gap-3",
-  nomeCliente: "text-lg font-bold text-white leading-tight",
-  telefoneCliente: "text-xs text-zinc-400 mt-0.5",
-
-  cardVeiculo: "bg-zinc-900 border border-zinc-600 rounded-xl px-4 py-3",
-  veiculoNome: "text-sm font-semibold text-white",
-  veiculoPlaca: "text-xs text-zinc-400 mt-0.5",
-
-  gridInfo: "grid grid-cols-2 gap-4",
-  campoServico: "col-span-2",
-  campoLabel: "text-[11px] font-semibold uppercase tracking-wider text-zinc-400",
-  campoValor: "text-sm font-semibold text-white mt-0.5",
-  campoValorMono: "text-sm font-semibold text-white mt-0.5 font-mono tabular-nums",
-
-  acoes: "flex flex-col gap-2 pt-4 border-t border-zinc-700",
-  acaoPrimaria: "bg-[#E56B25] hover:bg-[#cf5818] text-white",
-
-  wrapperPagamento: "flex flex-col gap-5",
-  campoResumo: "flex items-center justify-between bg-zinc-900 border border-zinc-600 rounded-xl px-4 py-3",
-  resumoNome: "text-sm text-zinc-300",
-  resumoValor: "text-lg font-bold text-white font-mono tabular-nums",
-
-  listaMetodos: "flex flex-col gap-2",
-  metodoBotao:
-    "flex items-center justify-between w-full px-4 py-3.5 rounded-xl border border-zinc-600 bg-zinc-900 hover:border-zinc-500 transition-colors text-left disabled:opacity-50 disabled:pointer-events-none",
-  metodoLabel: "text-sm font-semibold text-white",
-  metodoDetalhe: "text-xs text-zinc-400",
-
-  erro: "text-sm text-red-400",
-  voltar: "text-xs font-semibold text-zinc-400 hover:text-white transition-colors",
-
-  wrapperPix: "flex flex-col gap-4",
-  qrWrapper: "flex justify-center",
-  qrImagem: "w-48 h-48 object-contain rounded-lg border border-zinc-600 bg-white p-2",
-  qrExpirado: "opacity-30 grayscale",
-
-  tempoAtivo: "text-center text-sm font-mono font-semibold text-zinc-300",
-  tempoExpirado: "text-center text-sm font-mono font-semibold text-red-400",
-
-  pixCopiaWrapper: "flex flex-col gap-2",
-  campoPix: "w-full text-xs p-2.5 border border-zinc-600 rounded-lg bg-zinc-900 text-zinc-200 select-all",
-
-  avisoAtualizacao: "text-[11px] text-center text-zinc-400",
-};

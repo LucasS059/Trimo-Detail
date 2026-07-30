@@ -4,13 +4,13 @@ services:
     container_name: trimo-detail-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: trimo_admin
+      POSTGRES_PASSWORD: trimo_dev_2026
       POSTGRES_DB: trimo_detail
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_v2:/var/lib/postgresql/data
 
   adminer:
     image: adminer
@@ -22,4 +22,4 @@ services:
       - postgres
 
 volumes:
-  pgdata:
+  pgdata_v2:

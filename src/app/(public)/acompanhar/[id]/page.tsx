@@ -1,7 +1,8 @@
 // app/(public)/acompanhar/[id]/page.tsx
 import { buscarAgendamento } from "@/lib/db/agendamentos";
 import { notFound } from "next/navigation";
-import { AcompanhamentoAgendamento } from "@/components/public/acompanhamento-agendamento";
+import { AcompanhamentoAgendamento } from "@/components/public/agendamentos/acompanhamento-agendamento";
+import { LojaPublica } from "@/components/public/loja/loja-publica";
 
 export default async function AcompanharAgendamentoPage({
   params,

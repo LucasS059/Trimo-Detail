@@ -1,104 +1,115 @@
-// lib/slots.ts
-import { listarBloqueiosParaSlots, listarOcupacoesParaSlots } from "./db/agendamentos";
+import { listarBloqueiosParaSlots } from "./db/agendamentos";
 import { buscarHorariosFuncionamento } from "./db/lojas";
-
-type HorarioFuncionamento = {
-  dia_semana: number;
-  hora_abertura: string; // "HH:MM:SS"
-  hora_fechamento: string;
-  fechado: boolean;
-};
+import { addMinutes, isBefore, isAfter } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
+import { pool } from "./db/client";
 
 const INTERVALO_SLOT_MINUTOS = 30;
+const FUSO_PADRAO = "America/Sao_Paulo";
 
-/**
- * Calcula os horários livres de um dia específico para um serviço de X minutos.
- * Estratégia: gera slots de INTERVALO_SLOT_MINUTOS em minutos dentro do horário
- * de funcionamento do dia, e descarta os que colidem com algum agendamento
- * existente ou que não têm espaço suficiente para a duração do serviço.
- */
 export async function calcularHorariosLivres(params: {
   lojaId: string;
-  data: Date; // dia a consultar, em horário local
+  data: Date;
   duracaoServicoMinutos: number;
   antecedenciaMinimaMinutos: number;
+  fusoHorario?: string;
 }) {
-  const { lojaId, data, duracaoServicoMinutos, antecedenciaMinimaMinutos } = params;
+  const fuso = params.fusoHorario || FUSO_PADRAO;
 
-  const horarios = (await buscarHorariosFuncionamento(lojaId)) as HorarioFuncionamento[];
-  const diaSemana = data.getDay();
-  const horarioDoDia = horarios.find((h) => h.dia_semana === diaSemana);
+  // 1. Converter a data buscada para o fuso da loja
+  const dataLocal = toZonedTime(params.data, fuso);
+  const diaSemana = dataLocal.getDay();
+  const ano = dataLocal.getFullYear();
+  const mes = (dataLocal.getMonth() + 1).toString().padStart(2, "0");
+  const dia = dataLocal.getDate().toString().padStart(2, "0");
 
-  if (!horarioDoDia || horarioDoDia.fechado) return [];
+  // 2. Buscar o funcionamento da loja no banco
+  const horarios = await buscarHorariosFuncionamento(params.lojaId);
+  const funcionamentoHoje = horarios.find((h: any) => h.dia_semana === diaSemana);
 
-  const inicioDia = combinarDataHora(data, horarioDoDia.hora_abertura);
-  const fimDia = combinarDataHora(data, horarioDoDia.hora_fechamento);
+  if (!funcionamentoHoje || funcionamentoHoje.fechado) {
+    return []; // Loja fechada neste dia
+  }
 
-  const ocupacoes = await listarOcupacoesParaSlots(lojaId, inicioDia, fimDia);
-  const bloqueios = await listarBloqueiosParaSlots(lojaId, inicioDia, fimDia);
-  const intervalosOcupados = [
-    ...ocupacoes.map((o) => ({
-      inicio: new Date(o.data_hora),
-      fim: new Date(new Date(o.data_hora).getTime() + o.duracao_minutos * 60000),
-    })),
-    ...bloqueios.map((b) => ({ inicio: new Date(b.inicio), fim: new Date(b.fim) })),
-  ];
+  if (!funcionamentoHoje.hora_abertura || !funcionamentoHoje.hora_fechamento) {
+    console.error("[calcularHorariosLivres] Horário de funcionamento incompleto:", {
+      lojaId: params.lojaId,
+      diaSemana,
+      funcionamentoHoje,
+    });
+    return [];
+  }
 
-  const agora = new Date();
-  const limiteMinimo = new Date(agora.getTime() + antecedenciaMinimaMinutos * 60000);
+  // 3. Definir Início e Fim do dia perfeitamente alinhados ao fuso da loja e convertidos para UTC
+  // Colunas TIME do Postgres já vêm como "HH:MM:SS" — NÃO adicionar ":00" extra aqui.
+  const inicioDiaLocalStr = `${ano}-${mes}-${dia}T${funcionamentoHoje.hora_abertura}`;
+  const fimDiaLocalStr = `${ano}-${mes}-${dia}T${funcionamentoHoje.hora_fechamento}`;
 
+  const inicioDiaUTC = fromZonedTime(inicioDiaLocalStr, fuso);
+  const fimDiaUTC = fromZonedTime(fimDiaLocalStr, fuso);
+
+  if (isNaN(inicioDiaUTC.getTime()) || isNaN(fimDiaUTC.getTime())) {
+    console.error("[calcularHorariosLivres] Data inválida gerada:", {
+      inicioDiaLocalStr,
+      fimDiaLocalStr,
+      fuso,
+    });
+    return [];
+  }
+
+  if (!isBefore(inicioDiaUTC, fimDiaUTC)) {
+    console.error("[calcularHorariosLivres] Horário de abertura não é anterior ao de fechamento:", {
+      inicioDiaUTC,
+      fimDiaUTC,
+    });
+    return [];
+  }
+
+  // 4. Buscar agendamentos e bloqueios reais no banco
+  const bloqueios = await listarBloqueiosParaSlots(params.lojaId, inicioDiaUTC, fimDiaUTC);
+
+  const { rows: ocupacoes } = await pool.query(
+    `SELECT data_hora, duracao_minutos FROM agendamentos 
+     WHERE loja_id = $1 AND status <> 'cancelado' 
+     AND data_hora >= $2 AND data_hora <= $3`,
+    [params.lojaId, inicioDiaUTC.toISOString(), fimDiaUTC.toISOString()]
+  );
+
+  const agoraUTC = new Date();
+  const limiteAntecedenciaUTC = addMinutes(agoraUTC, params.antecedenciaMinimaMinutos);
   const slotsLivres: Date[] = [];
-  let cursor = new Date(inicioDia);
+  let cursor = inicioDiaUTC;
 
-  while (cursor.getTime() + duracaoServicoMinutos * 60000 <= fimDia.getTime()) {
-    const fimSlot = new Date(cursor.getTime() + duracaoServicoMinutos * 60000);
+  // 5. Motor de Varredura de Slots
+  while (addMinutes(cursor, params.duracaoServicoMinutos) <= fimDiaUTC) {
+    const fimSlot = addMinutes(cursor, params.duracaoServicoMinutos);
 
-    const colideComOcupacao = intervalosOcupados.some(
-      (o) => cursor < o.fim && fimSlot > o.inicio
-    );
-    const respeitaAntecedencia = cursor >= limiteMinimo;
-
-    if (!colideComOcupacao && respeitaAntecedencia) {
-      slotsLivres.push(new Date(cursor));
+    // Ignora horários no passado (respeitando antecedência mínima)
+    if (isBefore(cursor, limiteAntecedenciaUTC)) {
+      cursor = addMinutes(cursor, INTERVALO_SLOT_MINUTOS);
+      continue;
     }
 
-    cursor = new Date(cursor.getTime() + INTERVALO_SLOT_MINUTOS * 60000);
+    // Checa colisão com bloqueios manuais do dono
+    const conflitaBloqueio = bloqueios.some((b: any) => {
+      const bInicio = new Date(b.inicio);
+      const bFim = new Date(b.fim);
+      return isBefore(cursor, bFim) && isAfter(fimSlot, bInicio);
+    });
+
+    // Checa colisão com agendamentos de outros clientes
+    const conflitaAgendamento = ocupacoes.some((oc: any) => {
+      const ocInicio = new Date(oc.data_hora);
+      const ocFim = addMinutes(ocInicio, oc.duracao_minutos);
+      return isBefore(cursor, ocFim) && isAfter(fimSlot, ocInicio);
+    });
+
+    if (!conflitaBloqueio && !conflitaAgendamento) {
+      slotsLivres.push(cursor);
+    }
+
+    cursor = addMinutes(cursor, INTERVALO_SLOT_MINUTOS);
   }
 
   return slotsLivres;
-}
-
-export async function agendamentoDisponivel(params: {
-  lojaId: string;
-  inicio: Date;
-  duracaoMinutos: number;
-}) {
-  const { lojaId, inicio, duracaoMinutos } = params;
-  const horarios = (await buscarHorariosFuncionamento(lojaId)) as HorarioFuncionamento[];
-  const diaSemana = inicio.getDay();
-  const horarioDoDia = horarios.find((h) => h.dia_semana === diaSemana);
-
-  if (!horarioDoDia || horarioDoDia.fechado) return false;
-
-  const fim = new Date(inicio.getTime() + duracaoMinutos * 60000);
-  const inicioDia = combinarDataHora(inicio, horarioDoDia.hora_abertura);
-  const fimDia = combinarDataHora(inicio, horarioDoDia.hora_fechamento);
-
-  if (inicio < inicioDia || fim > fimDia) return false;
-  if (inicio.getTime() < Date.now()) return false;
-
-  const ocupacoes = await listarOcupacoesParaSlots(lojaId, inicio, fim);
-  if (ocupacoes.length > 0) return false;
-
-  const bloqueios = await listarBloqueiosParaSlots(lojaId, inicio, fim);
-  if (bloqueios.length > 0) return false;
-
-  return true;
-}
-
-function combinarDataHora(data: Date, horaISO: string): Date {
-  const [h, m, s] = horaISO.split(":").map(Number);
-  const resultado = new Date(data);
-  resultado.setHours(h, m, s ?? 0, 0);
-  return resultado;
 }

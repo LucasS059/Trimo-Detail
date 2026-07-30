@@ -10,7 +10,7 @@ export default async function ServicosPage() {
   const servicos = await listarServicos(lojaId, false);
 
   return (
-    <div className="max-w-5xl mx-auto w-full">
+    <div className="max-w-5xl mx-auto w-full space-y-6">
       <ServicosLista servicos={servicos} />
     </div>
   );

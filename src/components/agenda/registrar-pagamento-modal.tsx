@@ -4,17 +4,17 @@ import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { finalizarComBaixaManual, finalizarComPix } from "@/lib/actions/agendamentos";
+import { toast } from "sonner";
 
 type DadosPix = { qrCodeBase64?: string; copiaECola?: string; expiraEm?: string | Date | null };
 
-// Classes agrupadas aqui em vez de espalhadas no JSX
 const estilo = {
   metodoBotao:
-    "flex items-center justify-between w-full px-4 py-3.5 rounded-xl border border-zinc-200 bg-white hover:border-zinc-900 hover:bg-zinc-50 transition-colors text-left disabled:opacity-50 disabled:pointer-events-none",
-  metodoLabel: "text-sm font-semibold text-zinc-900",
-  metodoDetalhe: "text-xs text-zinc-500",
+    "flex items-center justify-between w-full px-4 py-3.5 rounded-xl border border-zinc-700 bg-zinc-900 hover:border-zinc-500 transition-colors text-left disabled:opacity-50 disabled:pointer-events-none",
+  metodoLabel: "text-sm font-semibold text-white",
+  metodoDetalhe: "text-xs text-zinc-400",
   campoPix:
-    "w-full text-xs p-2.5 border border-zinc-200 rounded-lg bg-zinc-50 text-zinc-600 select-all",
+    "w-full text-xs p-2.5 border border-zinc-700 rounded-lg bg-zinc-950 text-zinc-300 select-all",
 };
 
 export function RegistrarPagamentoModal({
@@ -33,166 +33,142 @@ export function RegistrarPagamentoModal({
   pixExistente?: DadosPix | null;
 }) {
   const [pending, startTransition] = useTransition();
-  const [etapa, setEtapa] = useState<"escolha" | "pix">(pixExistente?.qrCodeBase64 ? "pix" : "escolha");
+  const [etapa, setEtapa] = useState<"metodo" | "manual" | "pix">("metodo");
+  const [detalheManual, setDetalheManual] = useState("dinheiro");
   const [dadosPix, setDadosPix] = useState<DadosPix | null>(pixExistente ?? null);
-  const [erro, setErro] = useState<string | null>(null);
 
-  // Reabrir sempre respeitando se já existe Pix pendente
   useEffect(() => {
     if (aberto) {
-      setEtapa(pixExistente?.qrCodeBase64 ? "pix" : "escolha");
+      setEtapa("metodo");
       setDadosPix(pixExistente ?? null);
-      setErro(null);
     }
   }, [aberto, pixExistente]);
 
-  function escolherPix() {
-    if (dadosPix?.qrCodeBase64) {
-      setEtapa("pix");
-      return;
-    }
-    setErro(null);
+  function handleGerarPix() {
     startTransition(async () => {
       try {
-        const resultado = await finalizarComPix(agendamentoId);
-        setDadosPix(resultado);
+        const resposta = await finalizarComPix(agendamentoId, valor);
+        
+        if (!resposta.sucesso) {
+          toast.error(resposta.erro);
+          return;
+        }
+
+        if (resposta.dados) {
+          setDadosPix(resposta.dados);
+        }
+        
         setEtapa("pix");
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : "Não foi possível gerar o Pix.");
+        toast.success("Cobrança Pix gerada com sucesso!");
+      } catch (e: any) {
+        toast.error(e.message || "Erro ao gerar Pix.");
       }
     });
   }
 
-  function escolherBaixaManual(detalhe: "dinheiro" | "cartao") {
-    setErro(null);
+  function handleBaixaManual() {
     startTransition(async () => {
       try {
-        await finalizarComBaixaManual({ agendamentoId, detalhe });
+        const resposta = await finalizarComBaixaManual(agendamentoId, valor, detalheManual);
+        if (resposta && !resposta.sucesso) {
+          toast.error(resposta.erro);
+          return;
+        }
+        toast.success("Pagamento registrado com sucesso!");
         onFechar();
-      } catch (e) {
-        setErro(e instanceof Error ? e.message : "Não foi possível registrar o pagamento.");
+      } catch (e: any) {
+        toast.error(e.message || "Erro ao registrar pagamento.");
       }
     });
   }
 
-  const titulo = etapa === "pix" ? "Cobrança Pix" : "Registrar pagamento";
-
   return (
-    <Modal aberto={aberto} onFechar={onFechar} titulo={titulo} maxWidth="max-w-sm">
-      {etapa === "escolha" && (
-        <div className="flex flex-col gap-5">
-          <div className="flex items-center justify-between bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3">
-            <span className="text-sm text-zinc-500">{clienteNome}</span>
-            <span className="text-lg font-black text-zinc-900 font-mono tabular-nums">
-              R$ {valor.toFixed(2).replace(".", ",")}
-            </span>
-          </div>
+    <Modal aberto={aberto} onFechar={onFechar} titulo={`Registrar Pagamento — ${clienteNome}`} maxWidth="max-w-md">
+      <div className="flex flex-col gap-4 p-1">
+        {etapa === "metodo" && (
+          <div className="flex flex-col gap-3">
+            <button onClick={handleGerarPix} disabled={pending} className={estilo.metodoBotao}>
+              <div>
+                <p className={estilo.metodoLabel}>Pix Dinâmico</p>
+                <p className={estilo.metodoDetalhe}>Gera QR Code e Copia e Cola instantâneo</p>
+              </div>
+              <span className="text-xs font-bold text-[#E56B25]">Selecionar</span>
+            </button>
 
-          <div className="flex flex-col gap-2">
-            <button className={estilo.metodoBotao} disabled={pending} onClick={escolherPix}>
-              <span className={estilo.metodoLabel}>Pix</span>
-              <span className={estilo.metodoDetalhe}>{pending ? "Gerando..." : "QR Code e copia e cola"}</span>
-            </button>
-            <button className={estilo.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("dinheiro")}>
-              <span className={estilo.metodoLabel}>Dinheiro</span>
-              <span className={estilo.metodoDetalhe}>Baixa manual</span>
-            </button>
-            <button className={estilo.metodoBotao} disabled={pending} onClick={() => escolherBaixaManual("cartao")}>
-              <span className={estilo.metodoLabel}>Cartão</span>
-              <span className={estilo.metodoDetalhe}>Máquina própria (baixa manual)</span>
+            <button onClick={() => setEtapa("manual")} disabled={pending} className={estilo.metodoBotao}>
+              <div>
+                <p className={estilo.metodoLabel}>Baixa Manual / Dinheiro / Cartão</p>
+                <p className={estilo.metodoDetalhe}>Registra recebimento externo ou em espécie</p>
+              </div>
+              <span className="text-xs font-bold text-[#E56B25]">Selecionar</span>
             </button>
           </div>
+        )}
 
-          {erro && <p className="text-sm text-red-600">{erro}</p>}
-        </div>
-      )}
+        {etapa === "manual" && (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-bold text-zinc-300">Forma de recebimento</label>
+              <select
+                value={detalheManual}
+                onChange={(e) => setDetalheManual(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-zinc-700 bg-zinc-900 text-white text-sm outline-none focus:border-[#E56B25]"
+              >
+                <option value="dinheiro">Dinheiro</option>
+                <option value="cartao_debito">Cartão de Débito (Externo)</option>
+                <option value="cartao_credito">Cartão de Crédito (Externo)</option>
+                <option value="pix_manual">Pix Manual (Comprovante)</option>
+              </select>
+            </div>
 
-      {etapa === "pix" && dadosPix?.qrCodeBase64 && (
-        <ConteudoPix dadosPix={dadosPix} valor={valor} clienteNome={clienteNome} />
-      )}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800">
+              <Button variant="secondary" onClick={() => setEtapa("metodo")} disabled={pending}>
+                Voltar
+              </Button>
+              <Button onClick={handleBaixaManual} disabled={pending}>
+                {pending ? "Salvando..." : "Confirmar Baixa"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {etapa === "pix" && dadosPix && (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <p className="text-sm text-zinc-300">Escaneie o QR Code abaixo com o aplicativo do seu banco:</p>
+            {dadosPix.qrCodeBase64 && (
+              <img
+                src={`data:image/png;base64,${dadosPix.qrCodeBase64}`}
+                alt="QR Code Pix"
+                className="w-48 h-48 bg-white p-2 rounded-xl border border-zinc-700 object-contain"
+              />
+            )}
+            {dadosPix.copiaECola && (
+              <div className="w-full space-y-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={dadosPix.copiaECola}
+                  onClick={(e) => e.currentTarget.select()}
+                  className={estilo.campoPix}
+                />
+                <Button
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    navigator.clipboard.writeText(dadosPix.copiaECola!);
+                    toast.success("Código Copia e Cola copiado!");
+                  }}
+                >
+                  Copiar Código Pix
+                </Button>
+              </div>
+            )}
+            <button onClick={() => setEtapa("metodo")} className="text-xs text-zinc-400 hover:text-white mt-2">
+              ← Escolher outro método
+            </button>
+          </div>
+        )}
+      </div>
     </Modal>
-  );
-}
-
-function ConteudoPix({
-  dadosPix,
-  valor,
-  clienteNome,
-}: {
-  dadosPix: DadosPix;
-  valor: number;
-  clienteNome: string;
-}) {
-  const [tempoRestante, setTempoRestante] = useState<string | null>(null);
-  const [expirado, setExpirado] = useState(false);
-
-  useEffect(() => {
-    if (!dadosPix.expiraEm) return;
-    const expiraEmDate = new Date(dadosPix.expiraEm);
-
-    function atualizar() {
-      const diffMs = expiraEmDate.getTime() - Date.now();
-      if (diffMs <= 0) {
-        setExpirado(true);
-        setTempoRestante("Expirado");
-        return;
-      }
-      const min = Math.floor(diffMs / 60000);
-      const seg = Math.floor((diffMs % 60000) / 1000);
-      setTempoRestante(`${min}:${seg.toString().padStart(2, "0")}`);
-    }
-
-    atualizar();
-    const intervalo = setInterval(atualizar, 1000);
-    return () => clearInterval(intervalo);
-  }, [dadosPix.expiraEm]);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3">
-        <span className="text-sm text-zinc-500">{clienteNome}</span>
-        <span className="text-lg font-black text-zinc-900 font-mono tabular-nums">
-          R$ {valor.toFixed(2).replace(".", ",")}
-        </span>
-      </div>
-
-      <div className="flex justify-center">
-        <img
-          src={`data:image/png;base64,${dadosPix.qrCodeBase64}`}
-          alt="QR Code Pix"
-          className={`w-48 h-48 object-contain rounded-lg border border-zinc-100 ${expirado ? "opacity-30 grayscale" : ""}`}
-        />
-      </div>
-
-      {tempoRestante && (
-        <p className={`text-center text-sm font-mono font-bold ${expirado ? "text-red-500" : "text-zinc-700"}`}>
-          {expirado ? "Cobrança expirada" : `Expira em ${tempoRestante}`}
-        </p>
-      )}
-
-      {dadosPix.copiaECola && (
-        <div className="flex flex-col gap-2">
-          <input
-            type="text"
-            readOnly
-            value={dadosPix.copiaECola}
-            onClick={(e) => e.currentTarget.select()}
-            className={estilo.campoPix}
-          />
-          <Button
-            size="sm"
-            className="w-full bg-[#E56B25] hover:bg-[#cf5818]"
-            disabled={expirado}
-            onClick={() => navigator.clipboard.writeText(dadosPix.copiaECola!)}
-          >
-            Copiar código Pix
-          </Button>
-        </div>
-      )}
-
-      <p className="text-[11px] text-center text-zinc-400">
-        A tela atualiza automaticamente quando o pagamento for confirmado.
-      </p>
-    </div>
   );
 }

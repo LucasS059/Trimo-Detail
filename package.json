@@ -3,19 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "eslint",
+  "migrate:up": "dotenv -e .env.local -- node-pg-migrate up -m src/db/migrations",
+  "migrate:down": "dotenv -e .env.local -- node-pg-migrate down -m src/db/migrations",
+  "migrate:create": "node-pg-migrate create -m src/db/migrations"
+},
   "dependencies": {
+    "@vercel/blob": "^2.6.1",
     "bcryptjs": "^3.0.3",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
     "mercadopago": "^3.2.1",
     "next": "16.2.10",
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.10.1",
+    "server-only": "^0.0.1",
     "sonner": "^2.0.7"
   },
   "devDependencies": {

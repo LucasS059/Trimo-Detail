@@ -5,11 +5,16 @@ import { Modal } from "@/components/ui/modal";
 import { criarClienteAction, atualizarClienteAction } from "@/lib/actions/clientes";
 import { toast } from "sonner";
 import { Cliente } from "./clientes-lista";
+import {
+  aplicarMascaraTelefone,
+  criarHandlerTelefone,
+  criarHandlerEmail,
+  normalizarTelefone,
+  normalizarEmail,
+} from "@/lib/utils/contato";
 
 const campo = {
-  // Label agora é text-white para máximo contraste
   label: "text-[11px] font-semibold uppercase tracking-wider text-white",
-  // Placeholder um pouco mais claro (zinc-400)
   input: "w-full h-10 px-3 mt-1.5 rounded-lg border border-zinc-700 bg-zinc-900 text-white placeholder:text-zinc-400 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] transition-all text-sm",
 };
 
@@ -32,14 +37,19 @@ export function ModalClienteForm({
 
   const [veiculoModelo, setVeiculoModelo] = useState("");
   const [veiculoPlaca, setVeiculoPlaca] = useState("");
+  const [veiculoCor, setVeiculoCor] = useState("");
+
+  const handleTelefoneChange = criarHandlerTelefone(setTelefone);
+  const handleEmailChange = criarHandlerEmail(setEmail);
 
   useEffect(() => {
     if (aberto) {
       setNome(clienteEdicao?.nome ?? "");
-      setTelefone(clienteEdicao?.telefone ?? "");
+      setTelefone(clienteEdicao?.telefone ? aplicarMascaraTelefone(clienteEdicao.telefone) : "");
       setEmail(clienteEdicao?.email ?? "");
       setVeiculoModelo("");
       setVeiculoPlaca("");
+      setVeiculoCor("");
     }
   }, [aberto, clienteEdicao]);
 
@@ -47,13 +57,20 @@ export function ModalClienteForm({
     e.preventDefault();
     startTransition(async () => {
       try {
+        const telefoneNormalizado = normalizarTelefone(telefone);
+        const emailNormalizado = email ? normalizarEmail(email) : "";
+
         if (clienteEdicao) {
-          await atualizarClienteAction(clienteEdicao.id, { nome, telefone, email });
+          await atualizarClienteAction(clienteEdicao.id, {
+            nome,
+            telefone: telefoneNormalizado,
+            email: emailNormalizado,
+          });
           toast.success("Dados do cliente atualizados!");
         } else {
-          const payload: any = { nome, telefone, email };
+          const payload: any = { nome, telefone: telefoneNormalizado, email: emailNormalizado };
           if (veiculoModelo) {
-            payload.veiculo = { modelo: veiculoModelo, placa: veiculoPlaca };
+            payload.veiculo = { modelo: veiculoModelo, placa: veiculoPlaca || undefined, cor: veiculoCor || undefined };
           }
           await criarClienteAction(payload);
           toast.success("Cliente cadastrado com sucesso!");
@@ -78,11 +95,25 @@ export function ModalClienteForm({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={campo.label}>WhatsApp</label>
-              <input required value={telefone} onChange={(e) => setTelefone(e.target.value)} className={campo.input} placeholder="(00) 00000-0000" />
+              <input
+                required
+                value={telefone}
+                onChange={handleTelefoneChange}
+                inputMode="numeric"
+                maxLength={16}
+                className={campo.input}
+                placeholder="(00) 00000-0000"
+              />
             </div>
             <div>
               <label className={campo.label}>E-mail (Opcional)</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={campo.input} placeholder="email@exemplo.com" />
+              <input
+                type="email"
+                value={email}
+                onChange={handleEmailChange}
+                className={campo.input}
+                placeholder="email@exemplo.com"
+              />
             </div>
           </div>
         </div>
@@ -91,14 +122,18 @@ export function ModalClienteForm({
         {!clienteEdicao && (
           <div className="pt-5 border-t border-zinc-800 space-y-4">
             <p className="text-sm font-semibold text-white">Vincular Veículo <span className="text-zinc-400 font-normal">(Opcional)</span></p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className={campo.label}>Modelo</label>
                 <input value={veiculoModelo} onChange={(e) => setVeiculoModelo(e.target.value)} className={campo.input} placeholder="Ex: Civic G10" />
               </div>
               <div>
                 <label className={campo.label}>Placa</label>
-                <input value={veiculoPlaca} onChange={(e) => setVeiculoPlaca(e.target.value)} className={`${campo.input} uppercase`} placeholder="ABC-1234" />
+                <input value={veiculoPlaca} onChange={(e) => setVeiculoPlaca(e.target.value.toUpperCase())} className={`${campo.input} uppercase`} placeholder="ABC-1234" />
+              </div>
+              <div>
+                <label className={campo.label}>Cor</label>
+                <input value={veiculoCor} onChange={(e) => setVeiculoCor(e.target.value)} className={campo.input} placeholder="Cor" />
               </div>
             </div>
           </div>

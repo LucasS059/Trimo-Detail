@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { uploadImagemLojaAction } from "@/lib/actions/upload";
+import { comprimirImagem } from "@/lib/utils/comprimir-imagem";
 import { salvarConfiguracoesAction, salvarHorariosFuncionamentoAction } from "@/lib/actions/configuracoes";
 import { toast } from "sonner";
 
@@ -62,6 +64,35 @@ export function ConfiguracoesForm({ loja, horariosIniciais }: { loja: Loja; hora
   const arrastando = useRef(false);
   const inicioX = useRef(0);
   const scrollInicial = useRef(0);
+  const [enviandoImagem, setEnviandoImagem] = useState(false);
+  const [previewImagem, setPreviewImagem] = useState<string | null>(loja.imagem_url);
+  const inputImagemRef = useRef<HTMLInputElement>(null);
+
+  async function handleSelecionarImagem(e: React.ChangeEvent<HTMLInputElement>) {
+  const arquivoOriginal = e.target.files?.[0];
+  if (!arquivoOriginal) return;
+
+  setEnviandoImagem(true);
+  const previewAnterior = previewImagem;
+
+  try {
+    const arquivo = await comprimirImagem(arquivoOriginal);
+    setPreviewImagem(URL.createObjectURL(arquivo));
+
+    const formData = new FormData();
+    formData.append("arquivo", arquivo);
+
+    const { url } = await uploadImagemLojaAction(formData);
+    setPreviewImagem(url);
+    toast.success("Foto da loja atualizada!");
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : "Erro ao enviar imagem.");
+    setPreviewImagem(previewAnterior);
+  } finally {
+    setEnviandoImagem(false);
+    if (inputImagemRef.current) inputImagemRef.current.value = "";
+  }
+}
 
   function handleWheelTabs(e: React.WheelEvent<HTMLDivElement>) {
     const el = tabsRef.current;
@@ -89,6 +120,15 @@ export function ConfiguracoesForm({ loja, horariosIniciais }: { loja: Loja; hora
 
   function pararArrasto() {
     arrastando.current = false;
+  }
+
+  const [copiado, setCopiado] = useState(false);
+
+  function copiarLink() {
+    const url = `${window.location.origin}/${form.slug}`;
+    navigator.clipboard.writeText(url);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
   }
 
   function campoForm<K extends keyof typeof form>(chave: K, valor: (typeof form)[K]) {
@@ -172,6 +212,50 @@ export function ConfiguracoesForm({ loja, horariosIniciais }: { loja: Loja; hora
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-2xl px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Sua página pública</p>
+          <p className="text-sm font-mono text-zinc-300 truncate mt-0.5">
+            trimodetail.com.br/{form.slug}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={copiarLink}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition-colors"
+          >
+            {copiado ? (
+              <>
+                <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+                Copiado!
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                </svg>
+                Copiar link
+              </>
+            )}
+          </button>
+          <a
+            href={`/${form.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-white text-xs font-bold transition-colors"
+            style={{ backgroundColor: form.cor_primaria || "#E56B25" }}
+          >
+            Ver loja
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
       <div
         ref={tabsRef}
         onWheel={handleWheelTabs}
@@ -362,6 +446,44 @@ export function ConfiguracoesForm({ loja, horariosIniciais }: { loja: Loja; hora
       {abaAtiva === "personalizacao" && (
         <form onSubmit={handleSalvarPersonalizacao} className="bg-zinc-900 border border-zinc-700 rounded-2xl p-4 sm:p-6 space-y-6 shadow-sm">
           <div>
+            <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wider pb-3 border-b border-zinc-800">
+              Foto da Loja
+            </h2>
+            <p className="text-xs text-zinc-300 mt-3 leading-relaxed">
+              Essa imagem aparece no topo da sua página pública de agendamento. Use uma foto quadrada, de preferência.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 rounded-2xl overflow-hidden border border-zinc-700 bg-zinc-800 shrink-0 flex items-center justify-center">
+              {previewImagem ? (
+                <img src={previewImagem} alt="Foto da loja" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs text-zinc-500">Sem foto</span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <input
+                ref={inputImagemRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleSelecionarImagem}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => inputImagemRef.current?.click()}
+                disabled={enviandoImagem}
+                className="px-4 py-2 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 transition-colors disabled:opacity-50"
+              >
+                {enviandoImagem ? "Enviando..." : "Trocar foto"}
+              </button>
+              <p className="text-[11px] text-zinc-500">JPG, PNG ou WEBP · até 5MB</p>
+            </div>
+          </div>
+          
+          <div>
             <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-wider pb-3 border-b border-zinc-800">Cor da Página do Cliente</h2>
             <p className="text-xs text-zinc-300 mt-3 leading-relaxed">
               Essa é a cor usada nos botões e destaques da sua página pública de agendamento
@@ -418,15 +540,7 @@ export function ConfiguracoesForm({ loja, horariosIniciais }: { loja: Loja; hora
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-zinc-800">
-            <a
-              href={`/${form.slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors underline underline-offset-2"
-            >
-              Ver página pública em uma nova aba ↗
-            </a>
+          <div className="flex justify-end pt-4 border-t border-zinc-800">
             <button type="submit" disabled={pending} className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-bold transition-colors disabled:opacity-50">
               {pending ? "Salvando..." : "Salvar Personalização"}
             </button>

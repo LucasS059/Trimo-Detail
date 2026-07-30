@@ -1,3 +1,4 @@
+// app/(admin)/agenda/page.tsx
 import { listarAgendamentosPorPeriodo, listarBloqueiosAtivos } from "@/lib/db/agendamentos";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
@@ -48,8 +49,9 @@ export default async function AgendaPage({
 
   const agendamentos = await listarAgendamentosPorPeriodo(lojaId, inicioDia, fimDia);
 
+  // Agora traz preco e duracao_minutos — necessário pro multi-seleção no ModalNovoAgendamento
   const { rows: servicos } = await pool.query(
-    `SELECT id, nome FROM servicos WHERE loja_id = $1 AND ativo = TRUE ORDER BY nome`,
+    `SELECT id, nome, preco, duracao_minutos FROM servicos WHERE loja_id = $1 AND ativo = TRUE ORDER BY nome`,
     [lojaId]
   );
 

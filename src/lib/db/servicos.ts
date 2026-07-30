@@ -1,4 +1,3 @@
-// lib/db/servicos.ts
 import { pool } from "./client";
 
 export type Servico = {
@@ -6,7 +5,7 @@ export type Servico = {
   loja_id: string;
   nome: string;
   descricao: string | null;
-  preco: string; // numeric vem como string do pg
+  preco: string;
   duracao_minutos: number;
   ativo: boolean;
 };
@@ -22,13 +21,14 @@ export async function listarServicos(lojaId: string, apenasAtivos = false) {
   return rows;
 }
 
-export async function buscarServico(id: string, lojaId: string) {
+export async function buscarServicosPorIds(ids: string[], lojaId: string) {
+  if (ids.length === 0) return [];
   const { rows } = await pool.query<Servico>(
     `SELECT id, loja_id, nome, descricao, preco, duracao_minutos, ativo
-     FROM servicos WHERE id = $1 AND loja_id = $2`,
-    [id, lojaId]
+     FROM servicos WHERE id = ANY($1::uuid[]) AND loja_id = $2`,
+    [ids, lojaId]
   );
-  return rows[0] ?? null;
+  return rows;
 }
 
 export async function criarServico(

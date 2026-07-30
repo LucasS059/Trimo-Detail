@@ -178,7 +178,7 @@ export function AgendaLista({
                         <StatusBadge status={ag.status} />
                       </div>
                       <p className="text-xs sm:text-sm text-zinc-400 truncate">
-                        {ag.servico_nome}
+                        {ag.servicos.map((s) => s.nome).join(" + ")}
                         {ag.veiculo_modelo ? ` · ${ag.veiculo_modelo}` : ""}
                       </p>
                     </div>

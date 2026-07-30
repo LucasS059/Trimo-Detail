@@ -8,12 +8,12 @@ type Servico = { id: string; nome: string; duracao_minutos: number };
 
 export function SeletorHorario({
   lojaId,
-  servico,
+  servicos,
   onSelecionar,
   onVoltar,
 }: {
   lojaId: string;
-  servico: Servico;
+  servicos: Servico[];
   onSelecionar: (horario: Date) => void;
   onVoltar: () => void;
 }) {
@@ -21,17 +21,19 @@ export function SeletorHorario({
   const [horarios, setHorarios] = useState<Date[]>([]);
   const [carregando, setCarregando] = useState(true);
 
+  const duracaoTotal = servicos.reduce((soma, s) => soma + s.duracao_minutos, 0);
+
   useEffect(() => {
     setCarregando(true);
     buscarHorariosLivresAction({
       lojaId,
       dataISO: dia.toISOString(),
-      duracaoServicoMinutos: servico.duracao_minutos,
+      duracaoServicoMinutos: duracaoTotal,
     }).then((resultado) => {
       setHorarios(resultado.map((h) => new Date(h)));
       setCarregando(false);
     });
-  }, [dia, lojaId, servico.duracao_minutos]);
+  }, [dia, lojaId, duracaoTotal]);
 
   return (
     <div>
@@ -42,12 +44,12 @@ export function SeletorHorario({
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
         </svg>
-        Trocar serviço
+        Trocar serviços
       </button>
 
       <div className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 mb-5">
-        <p className="text-sm font-semibold text-white">{servico.nome}</p>
-        <p className="text-xs text-zinc-500 mt-0.5">{servico.duracao_minutos} min de duração</p>
+        <p className="text-sm font-semibold text-white">{servicos.map((s) => s.nome).join(" + ")}</p>
+        <p className="text-xs text-zinc-500 mt-0.5">{duracaoTotal} min de duração</p>
       </div>
 
       <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-3">Escolha o horário</h2>

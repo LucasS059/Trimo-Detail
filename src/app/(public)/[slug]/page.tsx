@@ -2,7 +2,7 @@
 import { buscarLojaPorSlug } from "@/lib/db/lojas";
 import { listarServicos } from "@/lib/db/servicos";
 import { notFound } from "next/navigation";
-import { LojaPublica } from "@/components/public/loja-publica";
+import { LojaPublica } from "@/components/public/loja/loja-publica";
 
 export default async function PaginaPublicaLoja({
   params,

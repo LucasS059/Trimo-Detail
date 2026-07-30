@@ -34,3 +34,18 @@ export async function obterLojaLogadaId(): Promise<string | null> {
   const cookieStore = await cookies();
   return cookieStore.get(COOKIE_NOME)?.value ?? null;
 }
+
+export async function obterContatoDaSessao(slug: string): Promise<string | null> {
+  const { cookies } = await import("next/headers");
+  const store = await cookies();
+  const token = store.get(`sessao_cliente_${slug}`)?.value;
+  if (!token) return null;
+  
+  const [dados, assinatura] = token.split(".");
+  if (!dados || !assinatura) return null;
+
+  const payload = JSON.parse(Buffer.from(dados, "base64url").toString());
+  if (payload.exp < Date.now()) return null;
+
+  return payload.contato;
+}

@@ -1,260 +1,268 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { InputHora } from "@/components/ui/input-hora";
-import { criarAgendamentoPeloAdmin } from "@/lib/actions/agendamentos";
-import {
-  buscarClientesAutocompleteAction,
-  listarVeiculosClienteAction,
-} from "@/lib/actions/clientes";
 import { toast } from "sonner";
+import { criarHandlerTelefone, normalizarTelefone } from "@/lib/utils/contato";
 
-type ClienteResultado = { id: string; nome: string; telefone: string };
-type VeiculoResultado = { id: string; placa: string | null; modelo: string; cor: string | null };
+// Actions do seu backend
+import { criarAgendamentoPeloAdmin } from "@/lib/actions/agendamentos";
+import { buscarClientesAutocompleteAction } from "@/lib/actions/clientes";
+
+type ServicoResultado = { id: string; nome: string; preco: number | string; duracao_minutos: number };
+type ClienteBuscado = { id: string; nome: string; telefone: string };
 
 const campo = {
   label: "text-sm font-bold text-zinc-300",
   input:
-    "h-10 px-3 rounded-lg border border-zinc-600 bg-zinc-900 text-white placeholder:text-zinc-500 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] transition-all disabled:opacity-60 disabled:cursor-not-allowed",
+    "h-10 px-3 rounded-lg border border-zinc-600 bg-zinc-900 text-white placeholder:text-zinc-500 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] transition-all disabled:opacity-60 disabled:cursor-not-allowed w-full",
 };
 
-export function ModalNovoAgendamento({ servicos }: { servicos: any[] }) {
+export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[] }) {
   const [isOpen, setIsOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
 
-  // --- busca de cliente ---
-  const [termoBusca, setTermoBusca] = useState("");
-  const [resultados, setResultados] = useState<ClienteResultado[]>([]);
-  const [dropdownAberto, setDropdownAberto] = useState(false);
+  // Estados dos Serviços
+  const [servicosSelecionados, setServicosSelecionados] = useState<ServicoResultado[]>([]);
+  
+  // Estados da Busca Inteligente
+  const [busca, setBusca] = useState("");
   const [buscando, setBuscando] = useState(false);
-  const [clienteSelecionado, setClienteSelecionado] = useState<ClienteResultado | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [resultadosBusca, setResultadosBusca] = useState<ClienteBuscado[]>([]);
+  const [clienteSelecionado, setClienteSelecionado] = useState<ClienteBuscado | null>(null);
 
-  // --- campos de cliente novo (quando ninguém foi selecionado) ---
-  const [telefoneNovo, setTelefoneNovo] = useState("");
-  const [veiculoTextoLivre, setVeiculoTextoLivre] = useState("");
+  // Estados para Novo Cliente (Fallback)
+  const [clienteNomeNovo, setClienteNomeNovo] = useState("");
+  const [clienteTelefoneNovo, setClienteTelefoneNovo] = useState("");
 
-  // --- veículos do cliente selecionado ---
-  const [veiculos, setVeiculos] = useState<VeiculoResultado[]>([]);
-  const [veiculoEscolhaId, setVeiculoEscolhaId] = useState<string>(""); // "" | "novo" | id real
-  const [veiculoModeloNovo, setVeiculoModeloNovo] = useState("");
-  const [carregandoVeiculos, setCarregandoVeiculos] = useState(false);
+  const handleTelefoneNovoChange = criarHandlerTelefone(setClienteTelefoneNovo);
 
-  function resetarTudo() {
-    setTermoBusca("");
-    setResultados([]);
-    setDropdownAberto(false);
-    setClienteSelecionado(null);
-    setTelefoneNovo("");
-    setVeiculoTextoLivre("");
-    setVeiculos([]);
-    setVeiculoEscolhaId("");
-    setVeiculoModeloNovo("");
-  }
-
-  function handleDigitarNome(valor: string) {
-    setTermoBusca(valor);
-    setDropdownAberto(true);
-
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (valor.trim().length < 2) {
-      setResultados([]);
+  // Efeito de Debounce para buscar no banco enquanto digita
+  useEffect(() => {
+    if (busca.trim().length < 2) {
+      setResultadosBusca([]);
       return;
     }
 
-    setBuscando(true);
-    debounceRef.current = setTimeout(async () => {
+    const timer = setTimeout(async () => {
+      setBuscando(true);
       try {
-        const encontrados = await buscarClientesAutocompleteAction(valor);
-        setResultados(encontrados);
+        // Chamada real para a sua action de clientes
+        const resultados = await buscarClientesAutocompleteAction(busca);
+        setResultadosBusca(resultados);
+      } catch (err) {
+        console.error("Erro ao buscar clientes:", err);
       } finally {
         setBuscando(false);
       }
-    }, 300);
-  }
+    }, 400);
 
-  function selecionarCliente(cliente: ClienteResultado) {
-    setClienteSelecionado(cliente);
-    setTermoBusca(cliente.nome);
-    setDropdownAberto(false);
-    setResultados([]);
+    return () => clearTimeout(timer);
+  }, [busca]);
 
-    setCarregandoVeiculos(true);
-    listarVeiculosClienteAction(cliente.id)
-      .then((lista) => setVeiculos(lista))
-      .finally(() => setCarregandoVeiculos(false));
-  }
-
-  function trocarCliente() {
-    resetarTudo();
-  }
-
-  function handleSubmit(formData: FormData) {
-    startTransition(async () => {
-      try {
-        await criarAgendamentoPeloAdmin(formData);
-        setIsOpen(false);
-        toast.success("Agendamento criado com sucesso!");
-        resetarTudo();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao criar agendamento");
-      }
-    });
+  function toggleServico(servico: ServicoResultado) {
+    setServicosSelecionados((prev) =>
+      prev.find((s) => s.id === servico.id)
+        ? prev.filter((s) => s.id !== servico.id)
+        : [...prev, servico]
+    );
   }
 
   function fecharModal() {
     setIsOpen(false);
-    resetarTudo();
+    setTimeout(() => {
+      setServicosSelecionados([]);
+      setBusca("");
+      setResultadosBusca([]);
+      setClienteSelecionado(null);
+      setClienteNomeNovo("");
+      setClienteTelefoneNovo("");
+      formRef.current?.reset();
+    }, 200);
   }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    if (servicosSelecionados.length === 0) {
+      toast.error("Selecione pelo menos um serviço.");
+      return;
+    }
+
+    if (!clienteSelecionado && (!clienteNomeNovo.trim() || !clienteTelefoneNovo.trim())) {
+      toast.error("Selecione um cliente existente ou preencha os dados do novo cliente.");
+      return;
+    }
+
+    // Gerencia os dados do cliente (Existente vs Novo)
+    if (clienteSelecionado) {
+      formData.set("clienteId", clienteSelecionado.id);
+      formData.set("clienteNome", clienteSelecionado.nome);
+      formData.set("clienteTelefone", clienteSelecionado.telefone);
+    } else {
+      formData.set("clienteNome", clienteNomeNovo);
+      formData.set("clienteTelefone", normalizarTelefone(clienteTelefoneNovo));
+    }
+
+    // Adiciona os serviços no formData
+    servicosSelecionados.forEach((s) => formData.append("servicosIds", s.id));
+
+    startTransition(async () => {
+      try {
+        const resultado = await criarAgendamentoPeloAdmin(formData);
+        
+        // Verifica se a action retornou um erro estruturado
+        if (resultado && !resultado.sucesso) {
+          toast.error(resultado.erro);
+          return;
+        }
+
+        toast.success("Agendamento criado com sucesso!");
+        fecharModal();
+      } catch (error: any) {
+        toast.error(error.message || "Erro ao criar o agendamento.");
+      }
+    });
+  }
+
+  const totalPreco = servicosSelecionados.reduce((acc, s) => acc + Number(s.preco), 0);
+  const totalDuracao = servicosSelecionados.reduce((acc, s) => acc + s.duracao_minutos, 0);
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(true)}
-        className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-bold transition-colors shadow-lg shadow-[#E56B25]/20 flex items-center justify-center gap-2"
-      >
-        <span>+</span> Novo agendamento
-      </button>
+      <Button onClick={() => setIsOpen(true)}>Novo Agendamento</Button>
 
-      <Modal aberto={isOpen} onFechar={fecharModal} titulo="Novo Agendamento" maxWidth="max-w-2xl">
-        <form action={handleSubmit} className="flex flex-col gap-6">
-          {clienteSelecionado && <input type="hidden" name="clienteId" value={clienteSelecionado.id} />}
-          {veiculoEscolhaId && veiculoEscolhaId !== "novo" && (
-            <input type="hidden" name="veiculoId" value={veiculoEscolhaId} />
-          )}
+      <Modal aberto={isOpen} onFechar={fecharModal} titulo="Novo Agendamento" maxWidth="max-w-xl">
+        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-5 pt-2">
+          
+          {/* SESSÃO DO CLIENTE: Inteligência de Busca */}
+          <div className="flex flex-col gap-3 p-4 bg-zinc-900/40 border border-zinc-700/50 rounded-xl">
+            <label className={campo.label}>Cliente</label>
 
-          {/* --- Bloco Cliente --- */}
-          <div className="flex flex-col gap-2 relative">
-            <div className="flex items-center justify-between">
-              <label className={campo.label}>Cliente</label>
-              {clienteSelecionado && (
-                <button
-                  type="button"
-                  onClick={trocarCliente}
-                  className="text-xs font-semibold text-[#E56B25] hover:text-[#ff8a4a] transition-colors"
+            {clienteSelecionado ? (
+              <div className="flex items-center justify-between p-3 bg-[#E56B25]/10 border border-[#E56B25]/50 rounded-lg animate-in fade-in">
+                <div>
+                  <p className="text-sm font-bold text-white">{clienteSelecionado.nome}</p>
+                  <p className="text-xs text-zinc-400 font-mono mt-0.5">{clienteSelecionado.telefone}</p>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setClienteSelecionado(null)} 
+                  className="text-xs font-bold text-red-400 hover:text-red-300 px-3 py-1.5 rounded-md hover:bg-red-400/10 transition-colors"
                 >
-                  Trocar cliente
+                  Remover
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="space-y-4 animate-in fade-in">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Buscar cliente (Nome ou WhatsApp)..."
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    className={campo.input}
+                    autoComplete="off"
+                  />
+                  
+                  {/* Dropdown de Resultados */}
+                  {busca.trim().length >= 2 && (
+                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-zinc-800 border border-zinc-700 rounded-lg shadow-2xl z-50 overflow-hidden max-h-48 overflow-y-auto">
+                      {buscando ? (
+                        <div className="p-3 text-center text-xs text-zinc-400">Buscando...</div>
+                      ) : resultadosBusca.length > 0 ? (
+                        <ul className="flex flex-col">
+                          {resultadosBusca.map((c) => (
+                            <li key={c.id}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setClienteSelecionado(c);
+                                  setBusca("");
+                                  setResultadosBusca([]);
+                                }}
+                                className="w-full text-left px-4 py-3 hover:bg-zinc-700 transition-colors flex items-center justify-between border-b border-zinc-700/50 last:border-0"
+                              >
+                                <span className="font-semibold text-white text-sm">{c.nome}</span>
+                                <span className="text-xs text-zinc-400 font-mono">{c.telefone}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="p-3 text-center text-xs text-zinc-400">
+                          Nenhum cliente encontrado. Preencha abaixo para cadastrar.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
-            <input
-              name="nome"
-              type="text"
-              required
-              autoComplete="off"
-              disabled={!!clienteSelecionado}
-              value={termoBusca}
-              onChange={(e) => handleDigitarNome(e.target.value)}
-              onFocus={() => termoBusca.length >= 2 && setDropdownAberto(true)}
-              onBlur={() => setTimeout(() => setDropdownAberto(false), 150)}
-              className={campo.input}
-              placeholder="Digite o nome do cliente..."
-            />
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-zinc-800"></div>
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Ou cadastre novo</span>
+                  <div className="h-px flex-1 bg-zinc-800"></div>
+                </div>
 
-            {dropdownAberto && !clienteSelecionado && (
-              <div className="absolute top-[68px] left-0 right-0 z-10 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl max-h-56 overflow-y-auto">
-                {buscando && <p className="px-4 py-3 text-sm text-zinc-500">Buscando...</p>}
-
-                {!buscando && termoBusca.trim().length >= 2 && resultados.length === 0 && (
-                  <p className="px-4 py-3 text-sm text-zinc-500">
-                    Nenhum cliente encontrado — preencha os dados abaixo pra cadastrar um novo.
-                  </p>
-                )}
-
-                {!buscando &&
-                  resultados.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => selecionarCliente(c)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-zinc-800 transition-colors flex items-center justify-between gap-3"
-                    >
-                      <span className="text-sm font-semibold text-white truncate">{c.nome}</span>
-                      <span className="text-xs text-zinc-500 shrink-0">{c.telefone}</span>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <input 
+                    type="text" 
+                    placeholder="Nome do cliente" 
+                    value={clienteNomeNovo}
+                    onChange={(e) => setClienteNomeNovo(e.target.value)}
+                    className={campo.input} 
+                  />
+                  <input
+                    type="tel"
+                    placeholder="WhatsApp"
+                    value={clienteTelefoneNovo}
+                    onChange={handleTelefoneNovoChange}
+                    inputMode="numeric"
+                    maxLength={16}
+                    className={campo.input}
+                  />
+                </div>
               </div>
             )}
           </div>
 
-          {/* --- Telefone: readonly se cliente existente, editável se novo --- */}
+          {/* SESSÃO DE SERVIÇOS */}
           <div className="flex flex-col gap-2">
-            <label className={campo.label}>Telefone (WhatsApp)</label>
-            <input
-              name="telefone"
-              type="text"
-              required
-              disabled={!!clienteSelecionado}
-              value={clienteSelecionado ? clienteSelecionado.telefone : telefoneNovo}
-              onChange={(e) => setTelefoneNovo(e.target.value)}
-              className={campo.input}
-              placeholder="(00) 00000-0000"
-            />
-          </div>
-
-          {/* --- Veículo: dropdown se cliente existente, texto livre se novo --- */}
-          <div className="flex flex-col gap-2">
-            <label className={campo.label}>Veículo</label>
-
-            {clienteSelecionado ? (
-              <>
-                <select
-                  value={veiculoEscolhaId}
-                  onChange={(e) => setVeiculoEscolhaId(e.target.value)}
-                  className={`${campo.input} appearance-none`}
-                  disabled={carregandoVeiculos}
-                >
-                  <option value="" className="bg-zinc-900 text-zinc-400">
-                    {carregandoVeiculos ? "Carregando veículos..." : "Sem veículo informado"}
-                  </option>
-                  {veiculos.map((v) => (
-                    <option key={v.id} value={v.id} className="bg-zinc-900 text-white">
-                      {v.modelo}{v.placa ? ` · ${v.placa}` : ""}
-                    </option>
-                  ))}
-                  <option value="novo" className="bg-zinc-900 text-[#E56B25] font-semibold">
-                    + Cadastrar novo veículo
-                  </option>
-                </select>
-
-                {veiculoEscolhaId === "novo" && (
-                  <input
-                    name="veiculoModeloNovo"
-                    type="text"
-                    value={veiculoModeloNovo}
-                    onChange={(e) => setVeiculoModeloNovo(e.target.value)}
-                    className={`${campo.input} mt-1`}
-                    placeholder="Ex: Honda Civic Preto"
-                  />
-                )}
-              </>
-            ) : (
-              <input
-                name="veiculoModeloNovo"
-                type="text"
-                value={veiculoTextoLivre}
-                onChange={(e) => setVeiculoTextoLivre(e.target.value)}
-                className={campo.input}
-                placeholder="Ex: Honda Civic Preto (opcional)"
-              />
+            <label className={campo.label}>Serviços</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+              {servicos.map((s) => {
+                const selecionado = servicosSelecionados.some((selec) => selec.id === s.id);
+                return (
+                  <label key={s.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selecionado ? 'bg-[#E56B25]/10 border-[#E56B25]/50' : 'bg-zinc-900 border-zinc-700/50 hover:bg-zinc-800'}`}>
+                    <input
+                      type="checkbox"
+                      checked={selecionado}
+                      onChange={() => toggleServico(s)}
+                      className="w-4 h-4 rounded border-zinc-600 bg-zinc-900 text-[#E56B25] focus:ring-[#E56B25]"
+                    />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm text-white font-medium truncate">{s.nome}</span>
+                      <span className="text-xs text-zinc-400">R$ {Number(s.preco).toFixed(2).replace(".", ",")}</span>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+            
+            {servicosSelecionados.length > 0 && (
+              <div className="flex items-center justify-between mt-1 text-sm px-1">
+                <span className="text-zinc-400">Total ({totalDuracao} min)</span>
+                <span className="font-bold text-white text-base">R$ {totalPreco.toFixed(2).replace(".", ",")}</span>
+              </div>
             )}
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className={campo.label}>Serviço</label>
-            <select required name="servicoId" className={`${campo.input} appearance-none`}>
-              <option value="" className="bg-zinc-900 text-zinc-400">Selecione um serviço...</option>
-              {servicos.map((s) => (
-                <option key={s.id} value={s.id} className="bg-zinc-900 text-white">{s.nome}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* SESSÃO DE DATA E HORA */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-zinc-900/40 border border-zinc-700/50 p-4 rounded-xl">
             <div className="flex flex-col gap-2">
               <label className={campo.label}>Data</label>
               <input required name="data" type="date" className={`${campo.input} [color-scheme:dark]`} />
@@ -265,17 +273,13 @@ export function ModalNovoAgendamento({ servicos }: { servicos: any[] }) {
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-700">
+          <div className="flex items-center justify-end gap-3 pt-4 mt-2">
             <Button variant="secondary" type="button" onClick={fecharModal} disabled={pending}>
               Cancelar
             </Button>
-            <button
-              type="submit"
-              disabled={pending}
-              className="px-4 py-2.5 rounded-xl bg-[#E56B25] hover:bg-[#cf5818] text-white text-sm font-bold transition-colors disabled:opacity-50"
-            >
-              {pending ? "Salvando..." : "Criar Agendamento"}
-            </button>
+            <Button type="submit" disabled={pending || servicosSelecionados.length === 0}>
+              {pending ? "A gravar..." : "Agendar"}
+            </Button>
           </div>
         </form>
       </Modal>

@@ -22,6 +22,7 @@ type Agendamento = {
   loja_slug: string;
   valor: string;
   cor_primaria?: string | null;
+  fuso_horario?: string | null;
 };
 
 export function AcompanhamentoAgendamento({ agendamento }: { agendamento: Agendamento }) {
@@ -89,6 +90,7 @@ export function AcompanhamentoAgendamento({ agendamento }: { agendamento: Agenda
 
           <p className="text-sm text-zinc-400 mt-1 capitalize">
             {new Date(agendamento.data_hora).toLocaleString("pt-BR", {
+              timeZone: agendamento.fuso_horario || "America/Sao_Paulo",
               dateStyle: "long",
               timeStyle: "short",
             })}

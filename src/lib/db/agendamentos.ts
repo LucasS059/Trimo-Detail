@@ -169,6 +169,7 @@ export async function buscarAgendamento(id: string) {
             l.nome as loja_nome, 
             l.slug as loja_slug,
             l.cor_primaria,
+            l.fuso_horario,
             COALESCE(
               json_agg(
                 json_build_object('id', ags.servico_id, 'nome', ags.nome_servico, 'preco', ags.preco, 'duracaoMinutos', ags.duracao_minutos)

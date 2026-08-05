@@ -15,6 +15,7 @@ export async function criarAgendamentoPublico(dados: {
   lojaSlug: string;
   nome: string;
   telefone: string;
+  email?: string | null;
   modeloVeiculo?: string; 
   placaVeiculo?: string;       
   corVeiculo?: string;
@@ -28,6 +29,7 @@ export async function criarAgendamentoPublico(dados: {
     const clienteId = await buscarOuCriarCliente(loja.id, {
       nome: dados.nome,
       telefone: dados.telefone,
+      email: dados.email
     });
 
     let veiculoId: string | undefined = undefined;

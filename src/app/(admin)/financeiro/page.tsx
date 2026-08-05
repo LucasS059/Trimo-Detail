@@ -1,41 +1,77 @@
-import { metricasFinanceiras, faturamentoPorDia, listarPagamentosPaginados } from "@/lib/db/pagamentos";
-import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
+import { subDays, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns";
+import { fromZonedTime, toZonedTime, format } from "date-fns-tz";
+import { obterLojaLogadaId } from "@/lib/actions/auth";
+import { getDadosFinanceiros } from "@/lib/db/financeiro";
 import { DashboardFinanceiro } from "@/components/financeiro/dashboard-financeiro";
+import { pool } from "@/lib/db/client";
 
 export default async function FinanceiroPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mes?: string; ano?: string; page?: string }>;
+  searchParams: { periodo?: string; pagina?: string; dataInicio?: string; dataFim?: string };
 }) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) redirect("/login");
 
-  const params = await searchParams;
-  
-  const dataAtual = new Date();
-  const mesAtual = params.mes ? parseInt(params.mes) : dataAtual.getMonth() + 1;
-  const anoAtual = params.ano ? parseInt(params.ano) : dataAtual.getFullYear();
-  const pagina = params.page ? parseInt(params.page) : 1;
+  const { rows: lojaRows } = await pool.query(
+    `SELECT fuso_horario FROM lojas WHERE id = $1`,
+    [lojaId]
+  );
+  const fusoHorario = lojaRows[0]?.fuso_horario || "America/Sao_Paulo";
 
-  const inicioMes = new Date(anoAtual, mesAtual - 1, 1, 0, 0, 0, 0);
-  const fimMes = new Date(anoAtual, mesAtual, 0, 23, 59, 59, 999);
+  const pagina = searchParams.pagina ? parseInt(searchParams.pagina) : 1;
+  const periodo = searchParams.periodo;
 
-  // Busca as métricas de negócio focadas em estética automotiva
-  const [metricas, graficoDiario, pagamentos] = await Promise.all([
-    metricasFinanceiras(lojaId, inicioMes, fimMes),
-    faturamentoPorDia(lojaId, inicioMes, fimMes),
-    listarPagamentosPaginados(lojaId, inicioMes, fimMes, pagina, 8) 
-  ]);
+  let dataInicio: Date;
+  let dataFim: Date;
+  let periodoAtual: string = periodo ?? "30d";
+
+  const agoraNaLoja = toZonedTime(new Date(), fusoHorario);
+
+  if (searchParams.dataInicio && searchParams.dataFim) {
+    const inicio = parseISO(searchParams.dataInicio);
+    const fim = parseISO(searchParams.dataFim);
+    if (isValid(inicio) && isValid(fim)) {
+      dataInicio = fromZonedTime(inicio, fusoHorario);
+      dataFim = fromZonedTime(fim, fusoHorario);
+      periodoAtual = "custom";
+    } else {
+      dataInicio = fromZonedTime(subDays(agoraNaLoja, 29), fusoHorario);
+      dataFim = fromZonedTime(agoraNaLoja, fusoHorario);
+      periodoAtual = "30d";
+    }
+  } else {
+    switch (periodo) {
+      case "7d":
+        periodoAtual = "7d";
+        dataInicio = fromZonedTime(subDays(agoraNaLoja, 6), fusoHorario);
+        dataFim = fromZonedTime(agoraNaLoja, fusoHorario);
+        break;
+      case "mes_atual":
+        periodoAtual = "mes_atual";
+        dataInicio = fromZonedTime(startOfMonth(agoraNaLoja), fusoHorario);
+        dataFim = fromZonedTime(endOfMonth(agoraNaLoja), fusoHorario);
+        break;
+      default:
+        periodoAtual = "30d";
+        dataInicio = fromZonedTime(subDays(agoraNaLoja, 29), fusoHorario);
+        dataFim = fromZonedTime(agoraNaLoja, fusoHorario);
+        break;
+    }
+  }
+
+  const dados = await getDadosFinanceiros(lojaId, dataInicio, dataFim, pagina, 10);
 
   return (
-    <div className="max-w-6xl mx-auto w-full">
-      <DashboardFinanceiro 
-        metricas={metricas} 
-        grafico={graficoDiario}
-        pagamentos={pagamentos}
-        mesAtual={mesAtual} 
-        anoAtual={anoAtual} 
+    <div className="max-w-7xl mx-auto w-full">
+      <DashboardFinanceiro
+        dados={dados}
+        periodoAtual={periodoAtual}
+        paginaAtual={pagina}
+        dataInicio={format(dataInicio, "yyyy-MM-dd", { timeZone: fusoHorario })}
+        dataFim={format(dataFim, "yyyy-MM-dd", { timeZone: fusoHorario })}
+        fusoHorario={fusoHorario}
       />
     </div>
   );

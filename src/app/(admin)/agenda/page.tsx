@@ -6,7 +6,7 @@ import { AgendaLista } from "@/components/agenda/agenda-lista";
 import { ModalNovoAgendamento } from "@/components/agenda/modal-novo-agendamento";
 import { ModalBloquearHorario } from "@/components/agenda/modal-bloquear-horario";
 import { pool } from "@/lib/db/client";
-
+import { fromZonedTime, format } from "date-fns-tz";
 export default async function AgendaPage({
   searchParams,
 }: {
@@ -23,29 +23,10 @@ export default async function AgendaPage({
 
   const { data } = await searchParams;
 
-  let inicioDia: Date;
-  let fimDia: Date;
-  let dataISOString: string;
+  const dataString = data || format(new Date(), "yyyy-MM-dd", { timeZone: fusoHorario });
 
-  if (data) {
-    const [year, month, day] = data.split("-").map(Number);
-    inicioDia = new Date(year, month - 1, day, 0, 0, 0, 0);
-    fimDia = new Date(year, month - 1, day, 23, 59, 59, 999);
-    dataISOString = data;
-  } else {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone: fusoHorario,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-
-    dataISOString = formatter.format(new Date());
-
-    const [year, month, day] = dataISOString.split("-").map(Number);
-    inicioDia = new Date(year, month - 1, day, 0, 0, 0, 0);
-    fimDia = new Date(year, month - 1, day, 23, 59, 59, 999);
-  }
+  const inicioDia = fromZonedTime(`${dataString}T00:00:00`, fusoHorario);
+  const fimDia = fromZonedTime(`${dataString}T23:59:59.999`, fusoHorario);
 
   const agendamentos = await listarAgendamentosPorPeriodo(lojaId, inicioDia, fimDia);
 
@@ -75,7 +56,7 @@ export default async function AgendaPage({
 
       <AgendaLista
         agendamentos={agendamentos}
-        dataAtual={dataISOString}
+        dataAtual={dataString}
         fusoHorario={fusoHorario}
       />
     </div>

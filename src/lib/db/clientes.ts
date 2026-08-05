@@ -31,17 +31,27 @@ export async function listarClientes(lojaId: string, busca?: string, pagina = 1,
   return { clientes: rows, total, totalPaginas: Math.ceil(total / limite) };
 }
 
-export async function buscarOuCriarCliente(lojaId: string, dados: { nome: string; telefone: string }) {
+export async function buscarOuCriarCliente(lojaId: string, dados: { nome: string; telefone: string, email?: string | null }) {
   const { rows: existente } = await pool.query(
-    `SELECT id FROM clientes WHERE loja_id = $1 AND telefone = $2`,
+    `SELECT id, email FROM clientes WHERE loja_id = $1 AND telefone = $2`,
     [lojaId, dados.telefone]
   );
 
-  if (existente[0]) return existente[0].id as string;
+  if (existente[0]) {
+    const cliente = existente[0];
+    // If client exists and a new/different email is provided, update it.
+    if (dados.email && dados.email !== cliente.email) {
+      await pool.query(
+        `UPDATE clientes SET email = $1 WHERE id = $2`,
+        [dados.email, cliente.id]
+      );
+    }
+    return cliente.id as string;
+  }
 
   const { rows: novo } = await pool.query(
-    `INSERT INTO clientes (loja_id, nome, telefone) VALUES ($1, $2, $3) RETURNING id`,
-    [lojaId, dados.nome, dados.telefone]
+    `INSERT INTO clientes (loja_id, nome, telefone, email) VALUES ($1, $2, $3, $4) RETURNING id`,
+    [lojaId, dados.nome, dados.telefone, dados.email ?? null]
   );
   return novo[0].id as string;
 }

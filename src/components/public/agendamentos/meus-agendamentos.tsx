@@ -11,7 +11,7 @@ import { aplicarMascaraTelefone, mascararTelefone, mascararEmail, detectarCanal 
 import { solicitarCodigoAction, validarCodigoAction } from "@/lib/actions/verificacao";
 import { listarMeusAgendamentosAction } from "@/lib/actions/clientes";
 
-type Loja = { slug: string; nome: string; cor_primaria?: string | null };
+type Loja = { slug: string; nome: string; cor_primaria?: string | null, fuso_horario?: string | null };
 
 type AgendamentoResumo = {
   id: string;
@@ -77,7 +77,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col" style={estiloTemaLoja(loja.cor_primaria)}>
-      
+
       {/* Header Minimalista */}
       <div className="w-full border-b border-zinc-900 bg-zinc-950/50 backdrop-blur-md sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -92,7 +92,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
       </div>
 
       <div className="flex-1 max-w-lg w-full mx-auto px-6 py-12">
-        
+
         {etapa !== "lista" && (
           <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-4">
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 bg-[var(--brand)]/10 border border-[var(--brand)]/20">
@@ -138,7 +138,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
                 <strong className="text-white text-base mt-1 block">{contatoMascarado}</strong>
               </p>
             </div>
-            
+
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 text-center block">
                 Digite o código
@@ -154,7 +154,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
               />
             </div>
             {erro && <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg border border-red-400/20">{erro}</p>}
-            
+
             <button 
               type="submit" 
               disabled={pending || codigoInput.length < 6} 
@@ -168,7 +168,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
         {etapa === "lista" && (
           <div className="animate-in fade-in slide-in-from-bottom-4">
             <h2 className="text-xl font-bold text-white mb-6">Histórico de Serviços</h2>
-            
+
             <div className="space-y-4">
               {agendamentos.length === 0 ? (
                 <div className="bg-zinc-900/30 border border-dashed border-zinc-800 rounded-3xl py-16 px-6 text-center">
@@ -184,10 +184,10 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
                     <div className="flex items-center justify-between mb-4 pb-4 border-b border-zinc-800/60">
                       <StatusBadge status={a.status} />
                       <span className="text-xs font-semibold text-zinc-400 capitalize">
-                        {new Date(a.data_hora).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })}
+                        {new Date(a.data_hora).toLocaleDateString("pt-BR", { timeZone: loja.fuso_horario || 'America/Sao_Paulo', day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })}
                       </span>
                     </div>
-                    
+
                     <div className="flex items-end justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <p className="text-base font-bold text-white truncate mb-1">

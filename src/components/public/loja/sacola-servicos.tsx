@@ -38,6 +38,7 @@ export function SacolaServicos({
   // Dados do cliente
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [email, setEmail] = useState("");
   
   // Dados do veículo (separados conforme a tabela 'veiculos' do DB)
   const [modelo, setModelo] = useState("");
@@ -61,6 +62,7 @@ export function SacolaServicos({
         lojaSlug: slugLoja,
         nome,
         telefone: normalizarTelefone(telefone),
+        email,
         modeloVeiculo: modelo,
         placaVeiculo: placa,
         corVeiculo: cor,
@@ -147,6 +149,13 @@ export function SacolaServicos({
             onChange={handleTelefoneChange}
             inputMode="numeric"
             maxLength={16}
+            className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-[var(--brand)] outline-none transition-colors"
+          />
+          <input
+            type="email"
+            placeholder="Seu E-mail (Opcional)"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             className="w-full bg-zinc-900/50 border border-zinc-800 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 focus:border-[var(--brand)] outline-none transition-colors"
           />
           

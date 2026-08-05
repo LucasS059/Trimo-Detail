@@ -59,7 +59,7 @@ export async function solicitarCodigoAction(contatoDigitado: string) {
       // 3. Atualiza a linha existente (reaproveitando o registro)
       await client.query(
         `UPDATE codigos_verificacao 
-         SET codigo_hash = $1, 
+         SET codigo = $1, 
              expira_em = $2, 
              usado = false, 
              tentativas = 0, 
@@ -72,7 +72,7 @@ export async function solicitarCodigoAction(contatoDigitado: string) {
     } else {
       // 4. Se o contato nunca pediu código antes, cria a linha única dele
       await client.query(
-        `INSERT INTO codigos_verificacao (contato, canal, codigo_hash, expira_em, tentativas_envio, created_at)
+        `INSERT INTO codigos_verificacao (contato, canal, codigo, expira_em, tentativas_envio, created_at)
          VALUES ($1, $2, $3, $4, 1, now())`,
         [contato, canal, codigo, expiraEm.toISOString()]
       );
@@ -110,7 +110,7 @@ export async function validarCodigoAction(contatoDigitado: string, codigoDigitad
     throw new Error("Muitas tentativas erradas. Solicite um novo código.");
   }
 
-  const confere = codigoDigitado === registro.codigo_hash; // baseando no nome da coluna do banco
+  const confere = codigoDigitado === registro.codigo; // baseando no nome da coluna do banco
   if (!confere) {
     await pool.query(`UPDATE codigos_verificacao SET tentativas = tentativas + 1 WHERE id = $1`, [registro.id]);
     throw new Error("Código incorreto.");

@@ -1,1 +1,0 @@
--- Conteúdo removido para evitar duplicidade com 001_init.sql

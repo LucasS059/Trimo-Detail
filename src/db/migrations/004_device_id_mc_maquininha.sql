@@ -1,1 +1,0 @@
-ALTER TABLE lojas ADD COLUMN IF NOT EXISTS mercadopago_device_id TEXT;

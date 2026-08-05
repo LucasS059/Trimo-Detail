@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -34,6 +34,20 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
 
   const brand = corMarca(loja.cor_primaria);
   const canal = detectarCanal(contatoInput);
+
+  useEffect(() => {
+    startTransition(async () => {
+      try {
+        const lista = await listarMeusAgendamentosAction(loja.slug);
+        if (lista.length > 0) {
+          setAgendamentos(lista);
+          setEtapa("lista");
+        }
+      } catch (err) {
+        // Sessão ausente ou expirada; mantemos a tela de login.
+      }
+    });
+  }, [loja.slug]);
 
   function handleMudarContato(valor: string) {
     if (valor.includes("@") || /[a-zA-Z]/.test(valor)) {

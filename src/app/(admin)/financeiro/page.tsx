@@ -9,10 +9,12 @@ import { pool } from "@/lib/db/client";
 export default async function FinanceiroPage({
   searchParams,
 }: {
-  searchParams: { periodo?: string; pagina?: string; dataInicio?: string; dataFim?: string };
+  searchParams: Promise<{ periodo?: string; pagina?: string; dataInicio?: string; dataFim?: string }>;
 }) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) redirect("/login");
+
+  const params = await searchParams;
 
   const { rows: lojaRows } = await pool.query(
     `SELECT fuso_horario FROM lojas WHERE id = $1`,
@@ -20,26 +22,26 @@ export default async function FinanceiroPage({
   );
   const fusoHorario = lojaRows[0]?.fuso_horario || "America/Sao_Paulo";
 
-  const pagina = searchParams.pagina ? parseInt(searchParams.pagina) : 1;
-  const periodo = searchParams.periodo;
+  const pagina = params.pagina ? parseInt(params.pagina, 10) : 1;
+  const periodo = params.periodo;
 
   let dataInicio: Date;
   let dataFim: Date;
-  let periodoAtual: string = periodo ?? "30d";
+  let periodoAtual: string = periodo ?? "mes_atual";
 
   const agoraNaLoja = toZonedTime(new Date(), fusoHorario);
 
-  if (searchParams.dataInicio && searchParams.dataFim) {
-    const inicio = parseISO(searchParams.dataInicio);
-    const fim = parseISO(searchParams.dataFim);
+  if (params.dataInicio && params.dataFim) {
+    const inicio = parseISO(params.dataInicio);
+    const fim = parseISO(params.dataFim);
     if (isValid(inicio) && isValid(fim)) {
       dataInicio = fromZonedTime(inicio, fusoHorario);
       dataFim = fromZonedTime(fim, fusoHorario);
       periodoAtual = "custom";
     } else {
-      dataInicio = fromZonedTime(subDays(agoraNaLoja, 29), fusoHorario);
-      dataFim = fromZonedTime(agoraNaLoja, fusoHorario);
-      periodoAtual = "30d";
+      dataInicio = fromZonedTime(startOfMonth(agoraNaLoja), fusoHorario);
+      dataFim = fromZonedTime(endOfMonth(agoraNaLoja), fusoHorario);
+      periodoAtual = "mes_atual";
     }
   } else {
     switch (periodo) {

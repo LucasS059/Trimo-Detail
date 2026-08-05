@@ -1,1 +1,0 @@
-ALTER TABLE codigos_verificacao ADD COLUMN tentativas_envio integer DEFAULT 0 NOT NULL;

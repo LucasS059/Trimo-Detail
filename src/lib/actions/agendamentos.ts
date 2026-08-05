@@ -142,6 +142,17 @@ export async function excluirBloqueioPeloAdmin(id: string) {
 export async function cancelarAgendamentoPeloCliente(agendamentoId: string) {
   return actionPublica(async () => {
     const { pool } = await import("@/lib/db/client");
+
+    const { rows } = await pool.query(`SELECT status FROM agendamentos WHERE id = $1`, [agendamentoId]);
+    const agendamento = rows[0];
+    if (!agendamento) {
+      throw new Error("Agendamento não encontrado.");
+    }
+
+    if (agendamento.status !== "agendado") {
+      throw new Error("Esse agendamento não pode ser cancelado neste momento. Entre em contato com a loja.");
+    }
+
     await pool.query(`UPDATE agendamentos SET status = 'cancelado', updated_at = now() WHERE id = $1`, [agendamentoId]);
     const { revalidatePath } = await import("next/cache");
     revalidatePath(`/acompanhar/${agendamentoId}`);

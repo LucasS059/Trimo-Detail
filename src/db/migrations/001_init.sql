@@ -1,39 +1,34 @@
--- db/migrations/001_init.sql
--- Estrutura inicial do banco: lojas (tenants), clientes, veículos, serviços, agendamentos e pagamentos.
-
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS btree_gist;
 
--- Loja = tenant. Cada estética automotiva cadastrada é uma linha aqui.
 CREATE TABLE lojas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome TEXT NOT NULL,
-  slug TEXT NOT NULL UNIQUE,
+  slug TEXT NOT NULL,
   nome_dono TEXT,
   descricao TEXT,
   imagem_url TEXT,
   endereco TEXT,
-  email_login TEXT NOT NULL UNIQUE,
+  email_login TEXT NOT NULL,
   senha_hash TEXT NOT NULL,
-
-  -- configurações de agendamento
   antecedencia_minima_minutos INTEGER NOT NULL DEFAULT 60,
   prazo_cancelamento_minutos INTEGER NOT NULL DEFAULT 60,
   lembrete_confirmacao_minutos INTEGER NOT NULL DEFAULT 60,
   dias_futuros_visiveis INTEGER NOT NULL DEFAULT 15,
-
-  -- integração Mercado Pago
   mercadopago_access_token TEXT,
   mercadopago_user_id TEXT,
-
-  -- plano/cobrança
-  plano TEXT NOT NULL DEFAULT 'gratuito', -- 'gratuito' | 'pago'
+  plano TEXT NOT NULL DEFAULT 'gratuito',
   ativo BOOLEAN NOT NULL DEFAULT TRUE,
-
+  mercadopago_device_id TEXT,
+  taxa_debito_percentual NUMERIC(5,2) NOT NULL DEFAULT 1.99,
+  taxa_credito_percentual NUMERIC(5,2) NOT NULL DEFAULT 4.98,
+  fuso_horario VARCHAR(50) NOT NULL DEFAULT 'America/Sao_Paulo',
+  cor_primaria VARCHAR(7) NOT NULL DEFAULT '#E56B25',
+  ultimo_upload_imagem_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Horário de funcionamento por dia da semana (0 = domingo ... 6 = sábado)
 CREATE TABLE horarios_funcionamento (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
@@ -41,10 +36,10 @@ CREATE TABLE horarios_funcionamento (
   hora_abertura TIME NOT NULL,
   hora_fechamento TIME NOT NULL,
   fechado BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (loja_id, dia_semana)
 );
 
--- Bloqueios manuais de horário (folgas, compromissos fora do sistema)
 CREATE TABLE bloqueios_horario (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
@@ -61,6 +56,7 @@ CREATE TABLE clientes (
   telefone TEXT NOT NULL,
   email TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (loja_id, telefone)
 );
 
@@ -84,41 +80,77 @@ CREATE TABLE servicos (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- status do agendamento controlado por CHECK, sem tabela de lookup (poucos valores fixos)
 CREATE TABLE agendamentos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
   cliente_id UUID NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
   veiculo_id UUID REFERENCES veiculos(id) ON DELETE SET NULL,
-  servico_id UUID NOT NULL REFERENCES servicos(id),
-
   data_hora TIMESTAMPTZ NOT NULL,
+  data_fim TIMESTAMPTZ NOT NULL,
   duracao_minutos INTEGER NOT NULL,
   valor NUMERIC(10, 2) NOT NULL,
-
   status TEXT NOT NULL DEFAULT 'agendado' CHECK (
     status IN ('agendado', 'em_andamento', 'aguardando_pagamento', 'concluido', 'cancelado', 'nao_compareceu')
   ),
-
   presenca_confirmada BOOLEAN NOT NULL DEFAULT FALSE,
   cancelado_por TEXT CHECK (cancelado_por IN ('cliente', 'dono')),
-
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_agendamentos_loja_data ON agendamentos (loja_id, data_hora);
+CREATE TABLE agendamento_servicos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agendamento_id UUID NOT NULL REFERENCES agendamentos(id) ON DELETE CASCADE,
+  servico_id UUID NOT NULL REFERENCES servicos(id),
+  nome_servico TEXT NOT NULL,
+  preco NUMERIC(10,2) NOT NULL,
+  duracao_minutos INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE pagamentos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agendamento_id UUID NOT NULL REFERENCES agendamentos(id) ON DELETE CASCADE,
   forma TEXT NOT NULL CHECK (forma IN ('pix', 'point', 'manual')),
-  forma_manual_detalhe TEXT, -- ex: 'dinheiro', 'cartao_fora_do_sistema' quando forma = 'manual'
+  forma_manual_detalhe TEXT,
   valor NUMERIC(10, 2) NOT NULL,
   status TEXT NOT NULL DEFAULT 'pendente' CHECK (status IN ('pendente', 'confirmado', 'falhou')),
   mercadopago_payment_id TEXT,
   confirmado_em TIMESTAMPTZ,
+  qr_code_base64 TEXT,
+  copia_e_cola TEXT,
+  expira_em TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE codigos_verificacao (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  contato TEXT NOT NULL,
+  canal TEXT NOT NULL CHECK (canal IN ('whatsapp', 'email')),
+  codigo TEXT NOT NULL,
+  tentativas INTEGER NOT NULL DEFAULT 0,
+  expira_em TIMESTAMPTZ NOT NULL,
+  usado BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  tentativas_envio INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE UNIQUE INDEX clientes_loja_id_telefone_key ON clientes (loja_id, telefone);
+CREATE UNIQUE INDEX lojas_slug_key ON lojas (slug);
+CREATE UNIQUE INDEX lojas_email_login_key ON lojas (email_login);
+CREATE UNIQUE INDEX horarios_funcionamento_loja_id_dia_semana_key ON horarios_funcionamento (loja_id, dia_semana);
+CREATE UNIQUE INDEX idx_pagamentos_mp_payment_id ON pagamentos (mercadopago_payment_id) WHERE (mercadopago_payment_id IS NOT NULL);
+
+CREATE INDEX idx_agendamentos_loja_data ON agendamentos (loja_id, data_hora);
+CREATE INDEX idx_agendamentos_cliente_id ON agendamentos (cliente_id);
+CREATE INDEX idx_agendamento_servicos_agendamento ON agendamento_servicos (agendamento_id);
+CREATE INDEX idx_codigos_verificacao_contato ON codigos_verificacao (contato, created_at DESC);
 CREATE INDEX idx_pagamentos_agendamento ON pagamentos (agendamento_id);
+
+ALTER TABLE agendamentos
+  ADD CONSTRAINT sem_conflito_horario
+  EXCLUDE USING gist (
+    loja_id WITH =,
+    tstzrange(data_hora, data_fim, '[)') WITH &&
+  )
+  WHERE (status <> 'cancelado');

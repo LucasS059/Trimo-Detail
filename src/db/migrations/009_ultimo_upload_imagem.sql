@@ -1,1 +1,0 @@
-ALTER TABLE lojas ADD COLUMN ultimo_upload_imagem_at timestamptz;

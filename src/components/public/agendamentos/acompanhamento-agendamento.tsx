@@ -28,7 +28,9 @@ type Agendamento = {
 export function AcompanhamentoAgendamento({ agendamento }: { agendamento: Agendamento }) {
   const [pending, startTransition] = useTransition();
 
-  const podeAgir = agendamento.status !== "cancelado" && agendamento.status !== "concluido";
+  const podeConfirmarPresenca = agendamento.status === "agendado" && !agendamento.presenca_confirmada;
+  const podeCancelar = agendamento.status === "agendado";
+  const mostrarAvisoNaoCancelavel = !podeCancelar && agendamento.status !== "cancelado" && agendamento.status !== "concluido";
 
   function cancelar() {
     if (!confirm("Tem certeza que deseja cancelar seu agendamento?")) return;
@@ -100,16 +102,22 @@ export function AcompanhamentoAgendamento({ agendamento }: { agendamento: Agenda
           </p>
         </div>
 
-        {podeAgir && (
+        {(podeConfirmarPresenca || podeCancelar || mostrarAvisoNaoCancelavel) && (
           <div className="flex flex-col gap-2.5 mt-5">
-            {!agendamento.presenca_confirmada && (
+            {podeConfirmarPresenca && (
               <Button disabled={pending} onClick={confirmar}>
                 Confirmar presença
               </Button>
             )}
-            <Button variant="danger" disabled={pending} onClick={cancelar}>
-              Cancelar agendamento
-            </Button>
+            {podeCancelar ? (
+              <Button variant="danger" disabled={pending} onClick={cancelar}>
+                Cancelar agendamento
+              </Button>
+            ) : mostrarAvisoNaoCancelavel ? (
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+                Atendimento já iniciado — entre em contato com a loja se precisar cancelar.
+              </div>
+            ) : null}
           </div>
         )}
       </div>

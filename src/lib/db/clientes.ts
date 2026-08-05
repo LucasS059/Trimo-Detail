@@ -1,4 +1,5 @@
 import { pool } from "./client";
+import { normalizarPlaca } from "@/lib/utils/placa";
 
 export async function listarClientes(lojaId: string, busca?: string, pagina = 1, limite = 10) {
   const offset = (pagina - 1) * limite;
@@ -39,7 +40,6 @@ export async function buscarOuCriarCliente(lojaId: string, dados: { nome: string
 
   if (existente[0]) {
     const cliente = existente[0];
-    // If client exists and a new/different email is provided, update it.
     if (dados.email && dados.email !== cliente.email) {
       await pool.query(
         `UPDATE clientes SET email = $1 WHERE id = $2`,
@@ -91,9 +91,21 @@ export async function buscarVeiculoPorId(veiculoId: string) {
 }
 
 export async function criarVeiculo(clienteId: string, dados: { placa?: string; modelo: string; cor?: string }) {
+  const placa = normalizarPlaca(dados.placa);
+
+  if (placa) {
+    const { rows: existente } = await pool.query(
+      `SELECT id FROM veiculos WHERE cliente_id = $1 AND placa = $2`,
+      [clienteId, placa]
+    );
+    if (existente[0]) {
+      return existente[0].id as string;
+    }
+  }
+
   const { rows } = await pool.query(
     `INSERT INTO veiculos (cliente_id, placa, modelo, cor) VALUES ($1, $2, $3, $4) RETURNING id`,
-    [clienteId, dados.placa ?? null, dados.modelo, dados.cor ?? null]
+    [clienteId, placa, dados.modelo, dados.cor ?? null]
   );
   return rows[0].id as string;
 }

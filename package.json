@@ -9,7 +9,8 @@
     "lint": "eslint",
     "migrate:up": "dotenv -e .env.local -- node-pg-migrate up -m src/db/migrations",
     "migrate:down": "dotenv -e .env.local -- node-pg-migrate down -m src/db/migrations",
-    "migrate:create": "node-pg-migrate create -m src/db/migrations"
+    "migrate:create": "node-pg-migrate create -m src/db/migrations",
+    "db:reset": "dotenv -e .env.local -- node scripts/reset-and-seed-db.js"
   },
   "dependencies": {
     "@vercel/blob": "^2.6.1",

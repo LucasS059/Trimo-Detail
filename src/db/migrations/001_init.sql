@@ -135,10 +135,8 @@ CREATE TABLE codigos_verificacao (
   tentativas_envio INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE UNIQUE INDEX clientes_loja_id_telefone_key ON clientes (loja_id, telefone);
 CREATE UNIQUE INDEX lojas_slug_key ON lojas (slug);
 CREATE UNIQUE INDEX lojas_email_login_key ON lojas (email_login);
-CREATE UNIQUE INDEX horarios_funcionamento_loja_id_dia_semana_key ON horarios_funcionamento (loja_id, dia_semana);
 CREATE UNIQUE INDEX idx_pagamentos_mp_payment_id ON pagamentos (mercadopago_payment_id) WHERE (mercadopago_payment_id IS NOT NULL);
 
 CREATE INDEX idx_agendamentos_loja_data ON agendamentos (loja_id, data_hora);

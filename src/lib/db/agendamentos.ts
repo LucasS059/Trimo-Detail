@@ -63,10 +63,10 @@ export async function criarAgendamento(dados: {
     }
 
     const { rows } = await client.query(
-      `INSERT INTO agendamentos (loja_id, cliente_id, veiculo_id, data_hora, duracao_minutos, valor, status)
-      VALUES ($1, $2, $3, $4, $5, $6, 'agendado')
+      `INSERT INTO agendamentos (loja_id, cliente_id, veiculo_id, data_hora, data_fim, duracao_minutos, valor, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'agendado')
       RETURNING id`,
-      [dados.lojaId, dados.clienteId, dados.veiculoId ?? null, inicioIso, duracaoTotal, valorTotal]
+      [dados.lojaId, dados.clienteId, dados.veiculoId ?? null, inicioIso, fimIso, duracaoTotal, valorTotal]
     );
     const agendamentoId = rows[0].id as string;
 

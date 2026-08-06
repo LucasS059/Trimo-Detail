@@ -1,31 +1,34 @@
 "use server";
 
 import { buscarClientePorId, buscarVeiculoPorId, criarVeiculo, deletarVeiculo } from "@/lib/db/clientes";
-import { obterLojaLogadaId } from "@/lib/actions/auth";
+import { actionAutenticada, type ActionResponse } from "./utils";
 import { revalidatePath } from "next/cache";
 
 export async function criarVeiculoAction(clienteId: string, dados: {
   placa?: string;
   modelo: string;
   cor?: string;
-}) {
-  const lojaId = await obterLojaLogadaId();
-  if (!lojaId) throw new Error("Não autenticado");
+}): Promise<ActionResponse<{ veiculoId: string }>> {
+  return actionAutenticada(async (lojaId) => {
+    const cliente = await buscarClientePorId(clienteId);
+    if (!cliente || cliente.loja_id !== lojaId) {
+      throw new Error("Cliente não encontrado ou não pertence à sua loja.");
+    }
 
-  const cliente = await buscarClientePorId(clienteId);
-  if (!cliente || cliente.loja_id !== lojaId) throw new Error("Cliente não encontrado");
-
-  await criarVeiculo(clienteId, dados);
-  revalidatePath("/(admin)/clientes");
+    const veiculoId = await criarVeiculo(clienteId, dados);
+    revalidatePath("/(admin)/clientes");
+    return { veiculoId };
+  });
 }
 
-export async function deletarVeiculoAction(veiculoId: string) {
-  const lojaId = await obterLojaLogadaId();
-  if (!lojaId) throw new Error("Não autenticado");
+export async function deletarVeiculoAction(veiculoId: string): Promise<ActionResponse<void>> {
+  return actionAutenticada(async (lojaId) => {
+    const veiculo = await buscarVeiculoPorId(veiculoId);
+    if (!veiculo || veiculo.loja_id !== lojaId) {
+      throw new Error("Veículo não encontrado ou não pertence à sua loja.");
+    }
 
-  const veiculo = await buscarVeiculoPorId(veiculoId);
-  if (!veiculo || veiculo.loja_id !== lojaId) throw new Error("Veículo não encontrado");
-
-  await deletarVeiculo(veiculoId);
-  revalidatePath("/(admin)/clientes");
+    await deletarVeiculo(veiculoId);
+    revalidatePath("/(admin)/clientes");
+  });
 }

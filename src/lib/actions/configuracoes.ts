@@ -21,6 +21,7 @@ export async function salvarConfiguracoesAction(dados: Record<string, any>) {
       Object.entries(dados).filter(([_, v]) => v !== undefined)
     );
 
+    // O repositório lida automaticamente com a distribuição para as tabelas fatiadas (lojas, agenda, integrações)
     await atualizarConfiguracoesLoja(lojaId, dadosFiltrados);
     revalidatePath("/configuracoes");
   });

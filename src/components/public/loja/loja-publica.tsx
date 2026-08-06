@@ -15,7 +15,6 @@ type Loja = {
   id: string;
   slug: string;
   nome: string;
-  nome_dono: string | null;
   descricao: string | null;
   imagem_url: string | null;
   endereco: string | null;
@@ -25,7 +24,7 @@ type Loja = {
 type Servico = {
   id: string;
   nome: string;
-  preco: string;
+  preco: number | string;
   duracao_minutos: number;
 };
 

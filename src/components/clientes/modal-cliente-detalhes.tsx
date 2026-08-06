@@ -42,24 +42,27 @@ export function ModalClienteDetalhes({
 
   function handleAdicionarVeiculo(e: React.FormEvent) {
     e.preventDefault();
+    if (!veiculoModelo) {
+      toast.warning("O modelo do veículo é obrigatório.");
+      return;
+    }
     startTransition(async () => {
-      try {
-        await criarVeiculoAction(cliente.id, {
-          modelo: veiculoModelo,
-          placa: veiculoPlaca || undefined,
-          cor: veiculoCor || undefined,
-        });
+      const res = await criarVeiculoAction(cliente.id, {
+        modelo: veiculoModelo,
+        placa: veiculoPlaca || undefined,
+        cor: veiculoCor || undefined,
+      });
+
+      if (res.sucesso) {
         setVeiculoModelo("");
         setVeiculoPlaca("");
         setVeiculoCor("");
-        
         const novaPaginacao = Math.ceil((totalVeiculos + 1) / veiculosPorPagina);
         setPaginaVeiculos(novaPaginacao);
-        
         toast.success("Veículo adicionado!");
         onAtualizado();
-      } catch (err) {
-        toast.error("Erro ao adicionar veículo.");
+      } else {
+        toast.error(res.erro);
       }
     });
   }
@@ -73,13 +76,13 @@ export function ModalClienteDetalhes({
   function confirmarExclusaoVeiculo() {
     if (!veiculoParaRemover) return;
     startTransition(async () => {
-      try {
-        await deletarVeiculoAction(veiculoParaRemover);
+      const res = await deletarVeiculoAction(veiculoParaRemover);
+      if (res.sucesso) {
         toast.success("Veículo removido.");
         setVeiculoParaRemover(null);
         onAtualizado();
-      } catch (err) {
-        toast.error("Erro ao remover veículo.");
+      } else {
+        toast.error(res.erro);
       }
     });
   }
@@ -92,14 +95,14 @@ export function ModalClienteDetalhes({
   // Executada quando o dono confirma a exclusão do cliente
   function confirmarExclusaoCliente() {
     startTransition(async () => {
-      try {
-        await deletarClienteAction(cliente.id);
-        toast.success("Cliente excluído.");
+      const res = await deletarClienteAction(cliente.id);
+      if (res.sucesso) {
+        toast.success("Cliente excluído com sucesso.");
         setConfirmandoExclusaoCliente(false);
         onAtualizado();
         onFechar();
-      } catch (err) {
-        toast.error("Erro ao excluir cliente.");
+      } else {
+        toast.error(res.erro);
       }
     });
   }

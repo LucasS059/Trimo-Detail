@@ -2,6 +2,7 @@ import { pool } from "./client";
 
 export type Servico = {
   id: string;
+  codigo: number;
   loja_id: string;
   nome: string;
   descricao: string | null;
@@ -12,7 +13,7 @@ export type Servico = {
 
 export async function listarServicos(lojaId: string, apenasAtivos = false) {
   const { rows } = await pool.query<Servico>(
-    `SELECT id, loja_id, nome, descricao, preco, duracao_minutos, ativo
+    `SELECT id, codigo, loja_id, nome, descricao, preco, duracao_minutos, ativo
      FROM servicos
      WHERE loja_id = $1 ${apenasAtivos ? "AND ativo = TRUE" : ""}
      ORDER BY nome`,
@@ -24,8 +25,8 @@ export async function listarServicos(lojaId: string, apenasAtivos = false) {
 export async function buscarServicosPorIds(ids: string[], lojaId: string) {
   if (ids.length === 0) return [];
   const { rows } = await pool.query<Servico>(
-    `SELECT id, loja_id, nome, descricao, preco, duracao_minutos, ativo
-     FROM servicos WHERE id = ANY($1::uuid[]) AND loja_id = $2`,
+    `SELECT id, codigo, loja_id, nome, descricao, preco, duracao_minutos, ativo
+     FROM servicos WHERE id = ANY($1::uuid[]) AND loja_id = $2 AND ativo = TRUE`,
     [ids, lojaId]
   );
   return rows;
@@ -38,7 +39,7 @@ export async function criarServico(
   const { rows } = await pool.query(
     `INSERT INTO servicos (loja_id, nome, descricao, preco, duracao_minutos)
      VALUES ($1, $2, $3, $4, $5)
-     RETURNING id`,
+     RETURNING id, codigo`,
     [lojaId, dados.nome, dados.descricao ?? null, dados.preco, dados.duracaoMinutos]
   );
   return rows[0].id as string;
@@ -57,6 +58,9 @@ export async function atualizarServico(
   );
 }
 
-export async function excluirServico(id: string, lojaId: string) {
-  await pool.query(`DELETE FROM servicos WHERE id = $1 AND loja_id = $2`, [id, lojaId]);
+export async function deletarServico(id: string, lojaId: string) {
+  await pool.query(
+    `UPDATE servicos SET ativo = FALSE WHERE id = $1 AND loja_id = $2`,
+    [id, lojaId]
+  );
 }

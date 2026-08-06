@@ -5,7 +5,6 @@ import {
   confirmarPagamentoPorMercadoPagoId,
   buscarLojaPorMercadoPagoPaymentId,
 } from "@/lib/db/pagamentos";
-import { atualizarStatus } from "@/lib/db/agendamentos";
 
 /**
  * Valida a assinatura do webhook do Mercado Pago (header x-signature).
@@ -66,21 +65,31 @@ export async function POST(request: NextRequest) {
     }
 
     // Descobre a loja dona do pagamento pra consultar com o token certo (multi-tenant)
-    const registro = await buscarLojaPorMercadoPagoPaymentId(mercadopagoPaymentId);
-    if (!registro || !registro.mercadopago_access_token) {
+    const lojaId = await buscarLojaPorMercadoPagoPaymentId(mercadopagoPaymentId);
+    if (!lojaId) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Como os tokens do MP agora ficam na tabela loja_integracoes, buscamos de forma segura
+    const { pool } = await import("@/lib/db/client");
+    const { rows: intRows } = await pool.query(
+      `SELECT mercadopago_access_token FROM loja_integracoes WHERE loja_id = $1`,
+      [lojaId]
+    );
+    const accessToken = intRows[0]?.mercadopago_access_token;
+
+    if (!accessToken) {
       return NextResponse.json({ ok: true });
     }
 
     const pagamentoRemoto = await consultarPagamento(
       mercadopagoPaymentId,
-      registro.mercadopago_access_token
+      accessToken
     );
 
     if (pagamentoRemoto.status === "approved") {
-      const pagamento = await confirmarPagamentoPorMercadoPagoId(mercadopagoPaymentId);
-      if (pagamento) {
-        await atualizarStatus(pagamento.agendamento_id, "concluido" as never);
-      }
+      // Passa o ID e o objeto vazio de detalhes (já que o webhook apenas confirma o status aprovado)
+      await confirmarPagamentoPorMercadoPagoId(mercadopagoPaymentId, {});
     }
 
     return NextResponse.json({ ok: true });

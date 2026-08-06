@@ -1,7 +1,6 @@
 "use server";
 
-import { put, del } from "@vercel/blob";
-import { atualizarConfiguracoesLoja } from "@/lib/db/lojas";
+import { put } from "@vercel/blob";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { revalidatePath } from "next/cache";
 import { pool } from "@/lib/db/client";
@@ -15,7 +14,7 @@ export async function uploadImagemLojaAction(formData: FormData) {
   if (!lojaId) throw new Error("Não autenticado");
 
   const { rows } = await pool.query(
-    `SELECT ultimo_upload_imagem_at, slug, imagem_url FROM lojas WHERE id = $1`,
+    `SELECT ultimo_upload_imagem_at, slug, imagem_url FROM lojas WHERE id = $1 AND ativo = TRUE`,
     [lojaId]
   );
   const loja = rows[0];
@@ -49,18 +48,12 @@ export async function uploadImagemLojaAction(formData: FormData) {
   });
 
   await pool.query(
-    `UPDATE lojas SET imagem_url = $1, ultimo_upload_imagem_at = now() WHERE id = $2`,
+    `UPDATE lojas SET imagem_url = $1, ultimo_upload_imagem_at = now(), updated_at = now() WHERE id = $2`,
     [blob.url, lojaId]
   );
 
-  if (loja.imagem_url) {
-    await del(loja.imagem_url, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(
-      (err) => console.error("Falha ao apagar imagem antiga do Blob:", err)
-    );
-  }
-
-  revalidatePath("/configuracoes");
   revalidatePath(`/${loja.slug}`);
+  revalidatePath("/configuracoes");
 
   return { url: blob.url };
 }

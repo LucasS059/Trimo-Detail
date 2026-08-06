@@ -6,7 +6,7 @@ import { formatarMoeda } from "@/lib/formatters";
 type Servico = {
   id: string;
   nome: string;
-  preco: string;
+  preco: number | string;
   duracao_minutos: number;
 };
 

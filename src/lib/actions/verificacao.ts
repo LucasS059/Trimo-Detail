@@ -4,9 +4,6 @@ import crypto from "crypto";
 import { pool } from "@/lib/db/client";
 import { normalizarContato, detectarCanal } from "@/lib/utils/contato";
 import { criarSessaoCliente } from "@/lib/auth/sessao-cliente";
-import { enviarCodigoContato } from "@/lib/notifications";
-import { actionPublica } from "./utils";
-import { encerrarSessaoCliente } from "@/lib/auth/sessao-cliente";
 
 const EXPIRACAO_MINUTOS = 10;
 const INTERVALO_MINIMO_MS = 60 * 1000; // 1 minuto entre cliques
@@ -89,9 +86,12 @@ export async function solicitarCodigoAction(contatoDigitado: string) {
     client.release();
   }
 
-  // 5. Dispara o envio real
-  if (canal === "whatsapp") await enviarCodigoWhatsApp(contato, codigo);
-  else await enviarCodigoContato(contato, codigo);
+  // 5. Dispara o envio real conforme o canal detectado
+  if (canal === "whatsapp") {
+    await enviarCodigoWhatsApp(contato, codigo);
+  } else {
+    await enviarCodigoEmail(contato, codigo);
+  }
 
   return { canal, contato };
 }
@@ -113,7 +113,7 @@ export async function validarCodigoAction(contatoDigitado: string, codigoDigitad
     throw new Error("Muitas tentativas erradas. Solicite um novo código.");
   }
 
-  const confere = codigoDigitado === registro.codigo; // baseando no nome da coluna do banco
+  const confere = codigoDigitado === registro.codigo;
   if (!confere) {
     await pool.query(`UPDATE codigos_verificacao SET tentativas = tentativas + 1 WHERE id = $1`, [registro.id]);
     throw new Error("Código incorreto.");
@@ -132,7 +132,7 @@ async function enviarCodigoWhatsApp(telefone: string, codigo: string) {
     console.log(`[whatsapp] WHATSAPP_API_URL não configurada — código não enviado: ${telefone} = ${codigo}`);
     return;
   }
-  // integração real
+  // integração real com API de WhatsApp
 }
 
 async function enviarCodigoEmail(email: string, codigo: string) {
@@ -141,5 +141,5 @@ async function enviarCodigoEmail(email: string, codigo: string) {
     console.log(`[email] EMAIL_API_URL não configurada — código não enviado: ${email} = ${codigo}`);
     return;
   }
-  // integração real
+  // integração real com API de E-mail
 }

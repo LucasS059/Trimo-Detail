@@ -7,6 +7,8 @@ import { ModalClienteForm } from "./modal-cliente-form";
 
 export type Cliente = {
   id: string;
+  codigo: number;
+  loja_id: string;
   nome: string;
   telefone: string;
   email: string | null;

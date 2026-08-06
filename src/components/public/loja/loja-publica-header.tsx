@@ -4,7 +4,6 @@ import Link from "next/link";
 type Loja = {
   slug: string;
   nome: string;
-  nome_dono: string | null;
   descricao: string | null;
   imagem_url: string | null;
 };
@@ -56,9 +55,6 @@ export function LojaPublicaHeader({ loja, brand }: { loja: Loja; brand: string }
           <h1 className="text-lg sm:text-xl font-black tracking-tight text-white leading-tight truncate">
             {loja.nome}
           </h1>
-          {loja.nome_dono && (
-            <p className="text-xs font-medium text-zinc-500 mt-0.5 truncate">por {loja.nome_dono}</p>
-          )}
         </div>
       </div>
 

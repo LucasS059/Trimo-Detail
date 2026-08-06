@@ -11,7 +11,8 @@ export type Servico = {
   id: string;
   nome: string;
   descricao: string | null;
-  preco: string; // Vindo do banco (numeric)
+  /** pg numeric chega como string; aceita number para formulários locais */
+  preco: number | string;
   duracao_minutos: number;
   ativo: boolean;
 };
@@ -52,13 +53,13 @@ export function ServicosLista({ servicos }: { servicos: Servico[] }) {
   function confirmarExclusao() {
     if (!servicoParaRemover) return;
     startTransition(async () => {
-      try {
-        await excluirServicoAction(servicoParaRemover.id);
+      const res = await excluirServicoAction(servicoParaRemover.id);
+      if (res.sucesso) {
         toast.success("Serviço excluído com sucesso.");
         setServicoParaRemover(null);
         router.refresh();
-      } catch (error) {
-        toast.error("Erro ao excluir serviço.");
+      } else {
+        toast.error(res.erro);
       }
     });
   }

@@ -56,28 +56,46 @@ export function ModalClienteForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      try {
-        const telefoneNormalizado = normalizarTelefone(telefone);
-        const emailNormalizado = email ? normalizarEmail(email) : "";
+      const telefoneNormalizado = normalizarTelefone(telefone);
+      const emailNormalizado = email ? normalizarEmail(email) : "";
 
-        if (clienteEdicao) {
-          await atualizarClienteAction(clienteEdicao.id, {
-            nome,
-            telefone: telefoneNormalizado,
-            email: emailNormalizado,
-          });
+      if (clienteEdicao) {
+        const res = await atualizarClienteAction(clienteEdicao.id, {
+          nome,
+          telefone: telefoneNormalizado,
+          email: emailNormalizado,
+        });
+        if (res.sucesso) {
           toast.success("Dados do cliente atualizados!");
+          onSalvo();
         } else {
-          const payload: any = { nome, telefone: telefoneNormalizado, email: emailNormalizado };
-          if (veiculoModelo) {
-            payload.veiculo = { modelo: veiculoModelo, placa: veiculoPlaca || undefined, cor: veiculoCor || undefined };
-          }
-          await criarClienteAction(payload);
-          toast.success("Cliente cadastrado com sucesso!");
+          toast.error(res.erro);
         }
-        onSalvo();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+      } else {
+        // Define a type for the payload to avoid 'any'
+        type CriarClientePayload = Parameters<typeof criarClienteAction>[0];
+        
+        const payload: CriarClientePayload = { 
+          nome, 
+          telefone: telefoneNormalizado, 
+          email: emailNormalizado 
+        };
+        
+        if (veiculoModelo) {
+          payload.veiculo = { 
+            modelo: veiculoModelo, 
+            placa: veiculoPlaca || undefined, 
+            cor: veiculoCor || undefined 
+          };
+        }
+
+        const res = await criarClienteAction(payload);
+        if (res.sucesso) {
+          toast.success("Cliente cadastrado com sucesso!");
+          onSalvo();
+        } else {
+          toast.error(res.erro);
+        }
       }
     });
   }

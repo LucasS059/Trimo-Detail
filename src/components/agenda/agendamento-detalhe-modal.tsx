@@ -15,22 +15,21 @@ import {
 } from "@/lib/actions/agendamentos";
 import { toast } from "sonner";
 
-export type ServicoDoAgendamento = { id: string; nome: string; preco: number; duracaoMinutos: number };
+export type ServicoDoAgendamento = { id: string; nome: string; preco: number | string; duracaoMinutos: number };
 
 export type AgendamentoDetalhe = {
   id: string;
+  codigo: number;
   data_hora: string;
+  duracao_minutos: number;
+  valor: number | string;
   status: string;
-  valor: string;
+  presenca_confirmada: boolean;
   cliente_nome: string;
   cliente_telefone: string;
-  servicos: ServicoDoAgendamento[];
   veiculo_modelo: string | null;
   veiculo_placa: string | null;
-  veiculo_cor: string | null;
-  pix_qr_code: string | null;
-  pix_copia_cola: string | null;
-  pix_expira_em: string | null;
+  servicos: ServicoDoAgendamento[];
 };
 
 type Etapa = "detalhe" | "pagamento" | "pix";

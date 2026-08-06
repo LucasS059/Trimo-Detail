@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { mudarStatusAgendamento, cancelarAgendamentoPeloDono } from "@/lib/actions/agendamentos";
+import type { StatusAgendamento } from "@/lib/db/agendamentos";
 import { toast } from "sonner";
 
 type DadosPix = { qrCodeBase64?: string; copiaECola?: string; expiraEm?: string | Date | null };
@@ -21,7 +22,7 @@ export function AgendamentoAcoes({
   const [statusOtimista, setStatusOtimista] = useState(status);
   const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
 
-  function atualizarStatus(novoStatus: string, mensagemSucesso: string) {
+  function atualizarStatus(novoStatus: StatusAgendamento, mensagemSucesso: string) {
     const statusAnterior = statusOtimista;
     setStatusOtimista(novoStatus);
 

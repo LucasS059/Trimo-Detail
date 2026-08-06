@@ -9,7 +9,6 @@ import { toast } from "sonner";
 type Loja = {
   nome: string;
   slug: string;
-  nome_dono: string | null;
   descricao: string | null;
   imagem_url: string | null;
   endereco: string | null;
@@ -144,69 +143,73 @@ export function ConfiguracoesForm({ loja, horariosIniciais }: { loja: Loja; hora
   function handleSalvarGeral(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      try {
-        const { tem_mercadopago_configurado, ...dados } = form;
-        await salvarConfiguracoesAction(dados);
-        toast.success("Informações gerais salvas com sucesso!");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+      const { tem_mercadopago_configurado, ...dados } = form;
+      const res = await salvarConfiguracoesAction(dados);
+      if (!res.sucesso) {
+        toast.error(res.erro);
+        return;
       }
+      toast.success("Informações gerais salvas com sucesso!");
     });
   }
 
   function handleSalvarHorarios(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      try {
-        await salvarHorariosFuncionamentoAction(horarios);
-
-        await salvarConfiguracoesAction({
-          fuso_horario: form.fuso_horario
-        });
-
-        toast.success("Horários e fuso atualizados com sucesso!");
-      } catch (err) {
-        toast.error("Erro ao salvar horários.");
+      const resHorarios = await salvarHorariosFuncionamentoAction(horarios);
+      if (!resHorarios.sucesso) {
+        toast.error(resHorarios.erro);
+        return;
       }
+
+      const resFuso = await salvarConfiguracoesAction({
+        fuso_horario: form.fuso_horario,
+      });
+      if (!resFuso.sucesso) {
+        toast.error(resFuso.erro);
+        return;
+      }
+
+      toast.success("Horários e fuso atualizados com sucesso!");
     });
   }
 
   function handleSalvarPagamentos(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      try {
-        const { tem_mercadopago_configurado, ...dados } = form;
-        await salvarConfiguracoesAction(dados);
-        setForm((atual) => ({ ...atual, mercadopago_access_token: "" }));
-        toast.success("Credenciais e maquininha salvas com sucesso!");
-      } catch (err) {
-        toast.error("Erro ao salvar pagamentos.");
+      const { tem_mercadopago_configurado, ...dados } = form;
+      const res = await salvarConfiguracoesAction(dados);
+      if (!res.sucesso) {
+        toast.error(res.erro);
+        return;
       }
+      setForm((atual) => ({ ...atual, mercadopago_access_token: "" }));
+      toast.success("Credenciais e maquininha salvas com sucesso!");
     });
   }
 
   function handleSalvarRegras(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      try {
-        const { tem_mercadopago_configurado, ...dados } = form;
-        await salvarConfiguracoesAction(dados);
-        toast.success("Regras de agendamento atualizadas!");
-      } catch (err) {
-        toast.error("Erro ao salvar regras.");
+      const { tem_mercadopago_configurado, ...dados } = form;
+      const res = await salvarConfiguracoesAction(dados);
+      if (!res.sucesso) {
+        toast.error(res.erro);
+        return;
       }
+      toast.success("Regras de agendamento atualizadas!");
     });
   }
 
   function handleSalvarPersonalizacao(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      try {
-        await salvarConfiguracoesAction({ cor_primaria: form.cor_primaria });
-        toast.success("Personalização salva com sucesso!");
-      } catch (err) {
-        toast.error("Erro ao salvar personalização.");
+      const res = await salvarConfiguracoesAction({ cor_primaria: form.cor_primaria });
+      if (!res.sucesso) {
+        toast.error(res.erro);
+        return;
       }
+      toast.success("Personalização salva com sucesso!");
     });
   }
 
@@ -287,15 +290,9 @@ export function ConfiguracoesForm({ loja, horariosIniciais }: { loja: Loja; hora
               <input value={form.slug} onChange={(e) => campoForm("slug", e.target.value)} className="w-full h-10 px-1 bg-transparent text-white text-sm outline-none font-mono min-w-0" required />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className={campo.label}>Nome do Responsável / Dono</label>
-              <input value={form.nome_dono ?? ""} onChange={(e) => campoForm("nome_dono", e.target.value)} className={campo.input} />
-            </div>
-            <div>
-              <label className={campo.label}>Endereço Completo</label>
-              <input value={form.endereco ?? ""} onChange={(e) => campoForm("endereco", e.target.value)} className={campo.input} />
-            </div>
+          <div>
+            <label className={campo.label}>Endereço Completo</label>
+            <input value={form.endereco ?? ""} onChange={(e) => campoForm("endereco", e.target.value)} className={campo.input} />
           </div>
           <div>
             <label className={campo.label}>Descrição da Estética</label>

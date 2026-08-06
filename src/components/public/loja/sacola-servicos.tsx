@@ -9,7 +9,7 @@ import { criarHandlerTelefone, normalizarTelefone } from "@/lib/utils/contato";
 type ServicoSacola = {
   id: string;
   nome: string;
-  preco: string;
+  preco: number | string;
   duracao_minutos: number;
 };
 
@@ -70,18 +70,19 @@ export function SacolaServicos({
         dataHora: horario,
       });
 
-      if (!resposta.sucesso) {
-        toast.error(resposta.erro);
+      if (resposta.sucesso && resposta.dados?.agendamentoId) {
+        onConcluido(resposta.dados.agendamentoId);
+      } else if (!resposta.sucesso) {
+        toast.error(resposta.erro || "Não foi possível obter o ID do agendamento criado.");
         const msg = resposta.erro.toLowerCase();
         if (msg.includes("indisponível") || msg.includes("conflita")) {
           onRemoverHorario();
           onContinuarParaHorario();
           setDrawerAberto(false);
         }
-        return;
+      } else {
+        toast.error("Não foi possível obter o ID do agendamento criado.");
       }
-
-      onConcluido(resposta.dados as string);
     });
   }
 

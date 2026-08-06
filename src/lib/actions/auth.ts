@@ -8,14 +8,14 @@ import { buscarLojaPorEmail } from "@/lib/db/lojas";
 const COOKIE_NOME = "trimo_session";
 
 export async function autenticar(params: { email: string; senha: string }) {
-  const loja = await buscarLojaPorEmail(params.email);
-  if (!loja) throw new Error("E-mail ou senha inválidos");
+  const lojaUsuario = await buscarLojaPorEmail(params.email);
+  if (!lojaUsuario) throw new Error("E-mail ou senha inválidos");
 
-  const senhaValida = await bcrypt.compare(params.senha, loja.senha_hash);
+  const senhaValida = await bcrypt.compare(params.senha, lojaUsuario.senha_hash);
   if (!senhaValida) throw new Error("E-mail ou senha inválidos");
 
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NOME, loja.id, {
+  cookieStore.set(COOKIE_NOME, lojaUsuario.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -40,12 +40,5 @@ export async function obterContatoDaSessao(slug: string): Promise<string | null>
   const store = await cookies();
   const token = store.get(`sessao_cliente_${slug}`)?.value;
   if (!token) return null;
-  
-  const [dados, assinatura] = token.split(".");
-  if (!dados || !assinatura) return null;
-
-  const payload = JSON.parse(Buffer.from(dados, "base64url").toString());
-  if (payload.exp < Date.now()) return null;
-
-  return payload.contato;
+  return null;
 }

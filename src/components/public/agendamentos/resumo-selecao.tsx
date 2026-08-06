@@ -1,7 +1,7 @@
 // components/public/agendamentos/resumo-selecao.tsx
 import { formatarMoeda } from "@/lib/formatters";
 
-type Servico = { id: string; nome: string; preco: string; duracao_minutos: number };
+type Servico = { id: string; nome: string; preco: number | string; duracao_minutos: number };
 
 export function ResumoSelecao({
   servicos,

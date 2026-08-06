@@ -15,7 +15,6 @@ import { AcompanhamentoAgendamento } from "@/components/public/agendamentos/acom
 type Loja = {
   slug: string;
   nome: string;
-  nome_dono?: string | null;
   descricao?: string | null;
   endereco?: string | null;
   cor_primaria?: string | null;
@@ -27,7 +26,8 @@ type AgendamentoResumo = {
   data_hora: string;
   status: string;
   presenca_confirmada: boolean;
-  servicos: { id: string; nome: string; preco: string }[];
+  servicos: { id: string; nome: string; preco: number | string }[];
+  valor: number | string;
 };
 
 type Etapa = "identificar" | "codigo" | "lista";
@@ -38,10 +38,10 @@ type AgendamentoDetalhe = {
   status: string;
   presenca_confirmada: boolean;
   cliente_nome: string;
-  servicos: { id: string; nome: string; preco: number; duracaoMinutos: number }[];
+  servicos: { id: string; nome: string; preco: number | string; duracaoMinutos: number }[];
   loja_nome: string;
   loja_slug: string;
-  valor: string;
+  valor: number | string;
   cor_primaria?: string | null;
   fuso_horario?: string | null;
 };
@@ -62,6 +62,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
   const canal = detectarCanal(contatoInput);
 
   useEffect(() => {
+    // Limpa o estado ao trocar de loja
     setEtapa("identificar");
     setAgendamentos([]);
     setPagina(1);
@@ -71,14 +72,18 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
     setErro(null);
 
     startTransition(async () => {
-      try {
-        const lista = await listarMeusAgendamentosAction(loja.slug);
-        if (lista.length > 0) {
-          setAgendamentos(lista);
-          setEtapa("lista");
-        }
-      } catch (err) {
+      const lista = await listarMeusAgendamentosAction(loja.slug);
+      if (lista.sucesso && lista.dados && lista.dados.length > 0) {
+        setAgendamentos(lista.dados);
+        setEtapa("lista");
+      } else {
+        // Se a action retornou sucesso mas sem dados, ou se falhou (sessão expirada),
+        // o usuário precisa se identificar. Não mostramos erro aqui, apenas a tela de login.
         setEtapa("identificar");
+        if (!lista.sucesso) {
+          // A sessão pode ter expirado, o que é um fluxo normal.
+          console.warn(lista.erro);
+        }
       }
     });
   }, [loja.slug]);
@@ -101,7 +106,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
           resultado.canal === "whatsapp" ? mascararTelefone(resultado.contato) : mascararEmail(resultado.contato)
         );
         setEtapa("codigo");
-        toast.success("Código enviado!");
+        toast.success("Código enviado com sucesso!");
       } catch (err) {
         setErro(err instanceof Error ? err.message : "Não foi possível enviar o código.");
       }
@@ -114,11 +119,20 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
     startTransition(async () => {
       try {
         await validarCodigoAction(contatoInput, codigoInput, loja.slug);
+        
         const lista = await listarMeusAgendamentosAction(loja.slug);
-        setAgendamentos(lista);
-        setEtapa("lista");
+        if (lista.sucesso && lista.dados) {
+          setAgendamentos(lista.dados);
+          setEtapa("lista");
+          toast.success("Acesso liberado!");
+        } else {
+          // Se falhou em obter agendamentos após validar, pode ser que não tenha nenhum.
+          setAgendamentos([]);
+          setEtapa("lista"); // Ainda vai para a lista, que mostrará "nenhum agendamento".
+          if (!lista.sucesso) toast.error(lista.erro);
+        }
       } catch (err) {
-        setErro(err instanceof Error ? err.message : "Código inválido.");
+        setErro(err instanceof Error ? err.message : "Código inválido ou expirado.");
       }
     });
   }
@@ -128,8 +142,10 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
     setCarregandoDetalhe(true);
     try {
       const resposta = await buscarAgendamentoPublicoAction(agendamentoId);
-      if (!resposta.sucesso) throw new Error(resposta.erro);
-      setAgendamentoDetalhe(resposta.dados as AgendamentoDetalhe);
+      if (!resposta.sucesso || !resposta.dados) {
+        throw new Error(!resposta.sucesso ? resposta.erro : "Falha ao carregar detalhes.");
+      }
+      setAgendamentoDetalhe(resposta.dados);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível abrir os detalhes.");
     } finally {
@@ -259,7 +275,6 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
               <h2 className="text-lg font-bold text-white">{loja.nome}</h2>
               {loja.descricao && <p className="text-sm text-zinc-400 mt-2">{loja.descricao}</p>}
               <div className="mt-4 grid gap-2 text-sm text-zinc-400">
-                {loja.nome_dono && <p><span className="font-semibold text-zinc-200">Responsável:</span> {loja.nome_dono}</p>}
                 {loja.endereco && <p><span className="font-semibold text-zinc-200">Endereço:</span> {loja.endereco}</p>}
                 <p>
                   <span className="font-semibold text-zinc-200">Acesso:</span>{" "}
@@ -298,7 +313,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
                           {a.servicos.map((s) => s.nome).join(" + ")}
                         </p>
                         <p className="text-sm font-mono text-zinc-300 font-semibold">
-                          {formatarMoeda(a.servicos.reduce((soma, s) => soma + Number(s.preco), 0).toFixed(2))}
+                          {formatarMoeda(a.valor)}
                         </p>
                       </div>
                       <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white transition-colors shrink-0">

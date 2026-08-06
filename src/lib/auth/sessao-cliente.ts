@@ -18,7 +18,6 @@ function verificar(token: string): PayloadSessao | null {
 
   const assinaturaEsperada = crypto.createHmac("sha256", SEGREDO).update(dados).digest("base64url");
   
-  // Timing Safe Equal evita ataques de medição de tempo no HMAC
   const a = Buffer.from(assinatura);
   const b = Buffer.from(assinaturaEsperada);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
@@ -45,14 +44,25 @@ export async function obterContatoDaSessao(slug: string): Promise<string | null>
   const store = await cookies();
   const token = store.get(`sessao_cliente_${slug}`)?.value;
   if (!token) return null;
-  
+
   const payload = verificar(token);
-  if (!payload) return null;
+  if (!payload || payload.slug !== slug) return null;
 
   return payload.contato;
 }
 
-export async function encerrarSessaoCliente(slug: string) {
+export async function destruirSessaoCliente(slug: string) {
   const store = await cookies();
-  store.delete(`sessao_cliente_${slug}`);
+  store.set(`sessao_cliente_${slug}`, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+}
+
+// Alias exigido pelas actions de verificação / clientes
+export async function encerrarSessaoCliente(slug: string) {
+  return destruirSessaoCliente(slug);
 }

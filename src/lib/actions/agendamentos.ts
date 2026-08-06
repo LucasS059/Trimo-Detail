@@ -1,13 +1,14 @@
 "use server";
 
-import { actionAutenticada, actionPublica } from "./utils";
+import { actionAutenticada, actionPublica, type ActionResponse } from "./utils";
 import { revalidatePath } from "next/cache";
 import { 
   criarAgendamento, 
   atualizarStatusAgendamento,
   criarBloqueioDb,
   excluirBloqueioDb,
-  buscarAgendamento
+  buscarAgendamento,
+  type StatusAgendamento
 } from "@/lib/db/agendamentos";
 import { buscarOuCriarCliente } from "@/lib/db/clientes";
 import { buscarLojaPorSlug } from "@/lib/db/lojas";
@@ -22,7 +23,7 @@ export async function criarAgendamentoPublico(dados: {
   corVeiculo?: string;
   servicosIds: string[];
   dataHora: Date;
-}) {
+}): Promise<ActionResponse<{ agendamentoId: string }>> {
   return actionPublica(async () => {
     const loja = await buscarLojaPorSlug(dados.lojaSlug);
     if (!loja) throw new Error("Loja não encontrada.");
@@ -40,167 +41,150 @@ export async function criarAgendamentoPublico(dados: {
         const { criarVeiculo } = await import("@/lib/db/clientes");
         veiculoId = await criarVeiculo(clienteId, {
           modelo: dados.modeloVeiculo,
-          placa: dados.placaVeiculo || undefined,
-          cor: dados.corVeiculo || undefined,
+          placa: dados.placaVeiculo,
+          cor: dados.corVeiculo
         });
-      } catch (err) {
-        console.error("Aviso: Falha ao salvar veículo.", err);
+      } catch (e) {
+        console.error("Erro ao cadastrar veículo opcional:", e);
       }
     }
 
     const agendamentoId = await criarAgendamento({
       lojaId: loja.id,
       clienteId,
-      veiculoId, 
+      veiculoId,
       servicosIds: dados.servicosIds,
-      dataHora: new Date(dados.dataHora),
+      dataHora: dados.dataHora
     });
 
     revalidatePath(`/${dados.lojaSlug}`);
-    return agendamentoId;
+    return { agendamentoId };
   });
 }
 
-export async function buscarAgendamentoPublicoAction(id: string) {
-  return actionPublica(async () => {
-    const agendamento = await buscarAgendamento(id);
-    if (!agendamento) throw new Error("Agendamento não encontrado.");
-    return agendamento;
-  });
-}
-
-export async function mudarStatusAgendamento(agendamentoId: string, novoStatus: any) {
+export async function criarAgendamentoPeloAdmin(formData: FormData): Promise<ActionResponse<{ agendamentoId: string }>> {
   return actionAutenticada(async (lojaId) => {
-    await atualizarStatusAgendamento(agendamentoId, lojaId, novoStatus);
-    revalidatePath("/(admin)/agenda");
-  });
-}
-
-export async function cancelarAgendamentoPeloDono(agendamentoId: string) {
-  return actionAutenticada(async (lojaId) => {
-    await atualizarStatusAgendamento(agendamentoId, lojaId, "cancelado");
-    revalidatePath("/(admin)/agenda");
-  });
-}
-
-export async function criarAgendamentoPeloAdmin(formData: FormData) {
-  return actionAutenticada(async (lojaId) => {
-    // Agora recebemos o clienteId (se o admin selecionou na lista)
-    const clienteIdForm = formData.get("clienteId") as string | null;
+    let clienteId = formData.get("clienteId") as string;
     const clienteNome = formData.get("clienteNome") as string;
     const clienteTelefone = formData.get("clienteTelefone") as string;
     const data = formData.get("data") as string;
     const hora = formData.get("hora") as string;
     const servicosIds = formData.getAll("servicosIds") as string[];
 
-    if (!data || !hora || servicosIds.length === 0) {
-      throw new Error("Preencha todos os campos obrigatórios (Data, Hora e Serviços).");
-    }
-
-    let clienteId = clienteIdForm;
-
-    // Se o ID não veio, significa que o admin digitou um novo cliente manualmente
-    if (!clienteId) {
-      if (!clienteNome || !clienteTelefone) {
-        throw new Error("Dados do cliente incompletos.");
-      }
-      clienteId = await buscarOuCriarCliente(lojaId, { 
-        nome: clienteNome, 
-        telefone: clienteTelefone 
+    // Se o cliente não foi selecionado da lista, mas preencheu o formulário de novo cliente, cadastra-o na hora
+    if (!clienteId && clienteNome && clienteTelefone) {
+      const { criarCliente } = await import("@/lib/db/clientes");
+      clienteId = await criarCliente(lojaId, {
+        nome: clienteNome,
+        telefone: clienteTelefone,
       });
     }
 
-    await criarAgendamento({
+    if (!clienteId) {
+      throw new Error("Cliente não informado ou selecionado.");
+    }
+
+    if (!data || !hora) {
+      throw new Error("Data e hora são obrigatórias.");
+    }
+
+    const dataHora = new Date(`${data}T${hora}:00`);
+
+    const agendamentoId = await criarAgendamento({
       lojaId,
       clienteId,
       servicosIds,
-      dataHora: new Date(`${data}T${hora}:00`),
+      dataHora,
     });
 
     revalidatePath("/(admin)/agenda");
-    
-    // Retornamos sucesso explicitamente para que o toast.success do frontend funcione
-    return { sucesso: true }; 
+    return { agendamentoId };
   });
 }
 
-export async function criarBloqueioPeloAdmin(formData: FormData) {
+export async function mudarStatusAgendamento(id: string, status: StatusAgendamento): Promise<ActionResponse<void>> {
   return actionAutenticada(async (lojaId) => {
-    const inicioISO = formData.get("inicioISO") as string;
-    const fimISO = formData.get("fimISO") as string;
-    const motivo = formData.get("motivo") as string;
-
-    await criarBloqueioDb({
-      lojaId,
-      inicio: new Date(inicioISO),
-      fim: new Date(fimISO),
-      motivo
-    });
-
+    await atualizarStatusAgendamento(id, lojaId, status);
     revalidatePath("/(admin)/agenda");
   });
 }
 
-export async function excluirBloqueioPeloAdmin(id: string) {
-    return actionAutenticada(async (lojaId) => {
-        await excluirBloqueioDb(id, lojaId);
-        revalidatePath("/(admin)/agenda");
-    });
+export async function cancelarAgendamentoPeloDono(id: string): Promise<ActionResponse<void>> {
+  return actionAutenticada(async (lojaId) => {
+    await atualizarStatusAgendamento(id, lojaId, "cancelado");
+    revalidatePath("/(admin)/agenda");
+  });
 }
 
-export async function cancelarAgendamentoPeloCliente(agendamentoId: string) {
+export async function cancelarAgendamentoPeloCliente(id: string): Promise<ActionResponse<void>> {
+  return actionPublica(async () => {
+    const ag = await buscarAgendamento(id);
+    if (!ag) throw new Error("Agendamento não encontrada.");
+    await atualizarStatusAgendamento(id, ag.loja_id, "cancelado");
+    revalidatePath(`/acompanhar/${id}`);
+  });
+}
+
+export async function confirmarPresenca(id: string): Promise<ActionResponse<void>> {
   return actionPublica(async () => {
     const { pool } = await import("@/lib/db/client");
+    await pool.query(`UPDATE agendamentos SET presenca_confirmada = true, updated_at = now() WHERE id = $1`, [id]);
+    revalidatePath(`/acompanhar/${id}`);
+  });
+}
 
-    const { rows } = await pool.query(`SELECT status FROM agendamentos WHERE id = $1`, [agendamentoId]);
-    const agendamento = rows[0];
+export async function criarBloqueioPeloAdmin(dados: { inicio: Date; fim: Date; motivo?: string }): Promise<ActionResponse<void>> {
+  return actionAutenticada(async (lojaId) => {
+    await criarBloqueioDb({
+      lojaId,
+      inicio: dados.inicio,
+      fim: dados.fim,
+      motivo: dados.motivo
+    });
+    revalidatePath("/(admin)/agenda");
+  });
+}
+
+export async function excluirBloqueioPeloAdmin(id: string): Promise<ActionResponse<void>> {
+  return actionAutenticada(async (lojaId) => {
+    await excluirBloqueioDb(id, lojaId);
+    revalidatePath("/(admin)/agenda");
+  });
+}
+
+export async function buscarAgendamentoPublicoAction(id: string) {
+  return actionPublica(async () => {
+    const agendamento = await buscarAgendamento(id);
     if (!agendamento) {
       throw new Error("Agendamento não encontrado.");
     }
-
-    if (agendamento.status !== "agendado") {
-      throw new Error("Esse agendamento não pode ser cancelado neste momento. Entre em contato com a loja.");
-    }
-
-    await pool.query(`UPDATE agendamentos SET status = 'cancelado', updated_at = now() WHERE id = $1`, [agendamentoId]);
-    const { revalidatePath } = await import("next/cache");
-    revalidatePath(`/acompanhar/${agendamentoId}`);
+    return agendamento;
   });
 }
 
-export async function confirmarPresenca(agendamentoId: string) {
-  return actionPublica(async () => {
-    const { pool } = await import("@/lib/db/client");
-    await pool.query(`UPDATE agendamentos SET presenca_confirmada = true, updated_at = now() WHERE id = $1`, [agendamentoId]);
-    const { revalidatePath } = await import("next/cache");
-    revalidatePath(`/acompanhar/${agendamentoId}`);
-  });
-}
-
-export async function finalizarComBaixaManual(agendamentoId: string, valor: number, detalhe: string) {
+export async function finalizarComBaixaManual(agendamentoId: string, valor: number, detalhe: string): Promise<ActionResponse<void>> {
   return actionAutenticada(async (lojaId) => {
     const { registrarBaixaManual } = await import("@/lib/db/pagamentos");
     await registrarBaixaManual({ agendamentoId, valor, detalhe });
-    const { revalidatePath } = await import("next/cache");
     revalidatePath("/(admin)/agenda");
   });
 }
 
-export async function finalizarComPix(agendamentoId: string, valor: number) {
+export async function finalizarComPix(agendamentoId: string, valor: number): Promise<ActionResponse<{ qrCodeBase64: string, copiaECola: string }>> {
   return actionAutenticada(async (lojaId) => {
     const { pool } = await import("@/lib/db/client");
     await pool.query(`UPDATE agendamentos SET status = 'aguardando_pagamento', updated_at = now() WHERE id = $1 AND loja_id = $2`, [agendamentoId, lojaId]);
-    const { revalidatePath } = await import("next/cache");
     revalidatePath("/(admin)/agenda");
-    return { qrCodeBase64: "", copiaECola: "" };
+    // TODO: Chamar o Mercado Pago e gerar o PIX de verdade.
+    // O código abaixo é um mock para desenvolvimento.
+    return { qrCodeBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=", copiaECola: "00020126..." };
   });
 }
 
-export async function finalizarComPoint(agendamentoId: string, valor: number) {
+export async function finalizarComPoint(agendamentoId: string, valor: number): Promise<ActionResponse<void>> {
   return actionAutenticada(async (lojaId) => {
     const { pool } = await import("@/lib/db/client");
     await pool.query(`UPDATE agendamentos SET status = 'aguardando_pagamento', updated_at = now() WHERE id = $1 AND loja_id = $2`, [agendamentoId, lojaId]);
-    const { revalidatePath } = await import("next/cache");
     revalidatePath("/(admin)/agenda");
   });
 }

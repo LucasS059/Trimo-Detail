@@ -31,7 +31,7 @@ export default async function ClientesPage({
 
       {/* Lista passando as nomenclaturas perfeitamente alinhadas com o Backend */}
       <ClientesLista 
-        clientes={resultado.clientes as any} 
+        clientes={resultado.clientes} 
         paginaAtual={paginaAtual}
         totalPaginas={resultado.totalPaginas}
         totalClientes={resultado.total}

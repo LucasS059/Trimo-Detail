@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { buscarHorariosLivresAction } from "@/lib/actions/slots";
+import { toast } from "sonner";
 
 type Servico = { id: string; nome: string; duracao_minutos: number };
 
@@ -25,14 +26,32 @@ export function SeletorHorario({
 
   useEffect(() => {
     setCarregando(true);
-    buscarHorariosLivresAction({
-      lojaId,
-      dataISO: dia.toISOString(),
-      duracaoServicoMinutos: duracaoTotal,
-    }).then((resultado) => {
-      setHorarios(resultado.map((h) => new Date(h)));
-      setCarregando(false);
-    });
+    setHorarios([]); // Limpa horários antigos antes de buscar novos
+
+    async function buscarHorarios() {
+      try {
+        const resultado = await buscarHorariosLivresAction({
+          lojaId,
+          dataISO: dia.toISOString(),
+          duracaoServicoMinutos: duracaoTotal,
+        });
+
+        if (resultado.sucesso && resultado.dados) {
+          setHorarios(resultado.dados.map((h) => new Date(h)));
+        } else if (!resultado.sucesso) {
+          toast.error(resultado.erro || "Não foi possível carregar os horários.");
+        } else {
+          toast.error("Não foi possível carregar os horários.");
+        }
+      } catch (e) {
+        toast.error("Ocorreu um erro inesperado ao buscar horários.");
+        console.error(e);
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    void buscarHorarios();
   }, [dia, lojaId, duracaoTotal]);
 
   return (

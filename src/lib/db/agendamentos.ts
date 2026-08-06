@@ -47,7 +47,6 @@ export async function criarAgendamento(dados: {
     const fimIso = new Date(dados.dataHora.getTime() + duracaoTotal * 60000).toISOString();
 
     // Checagem otimista: falha rápido e com mensagem clara na maioria dos casos.
-    // Não é 100% à prova de concorrência sozinha (ver constraint abaixo, que é a garantia real).
     const choque = await client.query(
       `SELECT id FROM agendamentos 
        WHERE loja_id = $1 
@@ -65,14 +64,14 @@ export async function criarAgendamento(dados: {
     const { rows } = await client.query(
       `INSERT INTO agendamentos (loja_id, cliente_id, veiculo_id, data_hora, data_fim, duracao_minutos, valor, status)
       VALUES ($1, $2, $3, $4, $5, $6, $7, 'agendado')
-      RETURNING id`,
+      RETURNING id, codigo`,
       [dados.lojaId, dados.clienteId, dados.veiculoId ?? null, inicioIso, fimIso, duracaoTotal, valorTotal]
     );
     const agendamentoId = rows[0].id as string;
 
     for (const s of servicosReais) {
       await client.query(
-        `INSERT INTO agendamento_servicos (agendamento_id, servico_id, nome_servico, preco, duracao_minutos)
+        `INSERT INTO agendamento_itens (agendamento_id, servico_id, nome_servico, preco, duracao_minutos)
          VALUES ($1, $2, $3, $4, $5)`,
         [agendamentoId, s.id, s.nome, s.preco, s.duracao_minutos]
       );
@@ -80,12 +79,15 @@ export async function criarAgendamento(dados: {
 
     await client.query("COMMIT");
     return agendamentoId;
-  } catch (err: any) {
+  } catch (err: unknown) {
     await client.query("ROLLBACK");
 
-    // Rede de segurança real: se dois requests passaram pelo FOR UPDATE ao mesmo tempo
-    // (phantom read) e ambos tentaram inserir, o Postgres rejeita o segundo aqui.
-    if (err?.code === PG_EXCLUSION_VIOLATION) {
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code: string }).code === PG_EXCLUSION_VIOLATION
+    ) {
       throw new ConflitoHorarioError();
     }
 
@@ -97,7 +99,7 @@ export async function criarAgendamento(dados: {
 
 export async function listarAgendamentosPorPeriodo(lojaId: string, inicio: Date, fim: Date) {
   const { rows } = await pool.query(
-    `SELECT a.id, a.data_hora, a.duracao_minutos, a.valor, a.status, a.presenca_confirmada,
+    `SELECT a.id, a.codigo, a.data_hora, a.duracao_minutos, a.valor, a.status, a.presenca_confirmada,
             c.nome as cliente_nome, c.telefone as cliente_telefone,
             v.modelo as veiculo_modelo, v.placa as veiculo_placa,
             COALESCE(
@@ -108,9 +110,9 @@ export async function listarAgendamentosPorPeriodo(lojaId: string, inicio: Date,
      FROM agendamentos a
      JOIN clientes c ON c.id = a.cliente_id
      LEFT JOIN veiculos v ON v.id = a.veiculo_id
-     LEFT JOIN agendamento_servicos ags ON ags.agendamento_id = a.id
+     LEFT JOIN agendamento_itens ags ON ags.agendamento_id = a.id
      WHERE a.loja_id = $1 AND a.data_hora BETWEEN $2 AND $3
-     GROUP BY a.id, c.id, v.id
+     GROUP BY a.id, a.codigo, c.id, v.id
      ORDER BY a.data_hora ASC`,
     [lojaId, inicio.toISOString(), fim.toISOString()]
   );
@@ -131,7 +133,7 @@ export async function criarBloqueioDb(dados: {
   motivo?: string;
 }) {
   const { rows } = await pool.query(
-    `INSERT INTO bloqueios_horario (loja_id, inicio, fim, motivo)
+    `INSERT INTO loja_bloqueios (loja_id, inicio, fim, motivo)
      VALUES ($1, $2, $3, $4)
      RETURNING id`,
     [dados.lojaId, dados.inicio.toISOString(), dados.fim.toISOString(), dados.motivo || null]
@@ -141,14 +143,14 @@ export async function criarBloqueioDb(dados: {
 
 export async function excluirBloqueioDb(id: string, lojaId: string) {
   await pool.query(
-    `DELETE FROM bloqueios_horario WHERE id = $1 AND loja_id = $2`,
+    `DELETE FROM loja_bloqueios WHERE id = $1 AND loja_id = $2`,
     [id, lojaId]
   );
 }
 
 export async function listarBloqueiosAtivos(lojaId: string) {
   const { rows } = await pool.query(
-    `SELECT id, inicio, fim, motivo FROM bloqueios_horario WHERE loja_id = $1 AND fim >= now() ORDER BY inicio ASC`,
+    `SELECT id, inicio, fim, motivo FROM loja_bloqueios WHERE loja_id = $1 AND fim >= now() ORDER BY inicio ASC`,
     [lojaId]
   );
   return rows;
@@ -156,7 +158,7 @@ export async function listarBloqueiosAtivos(lojaId: string) {
 
 export async function listarBloqueiosParaSlots(lojaId: string, inicio: Date, fim: Date) {
   const { rows } = await pool.query(
-    `SELECT inicio, fim FROM bloqueios_horario WHERE loja_id = $1 AND inicio < $3 AND fim > $2`,
+    `SELECT inicio, fim FROM loja_bloqueios WHERE loja_id = $1 AND inicio < $3 AND fim > $2`,
     [lojaId, inicio.toISOString(), fim.toISOString()]
   );
   return rows;
@@ -164,7 +166,7 @@ export async function listarBloqueiosParaSlots(lojaId: string, inicio: Date, fim
 
 export async function buscarAgendamento(id: string) {
   const { rows } = await pool.query(
-    `SELECT a.id, a.data_hora, a.status, a.presenca_confirmada, a.valor,
+    `SELECT a.id, a.codigo, a.data_hora, a.status, a.presenca_confirmada, a.valor,
             c.nome as cliente_nome, 
             l.nome as loja_nome, 
             l.slug as loja_slug,
@@ -178,9 +180,9 @@ export async function buscarAgendamento(id: string) {
      FROM agendamentos a
      JOIN clientes c ON c.id = a.cliente_id
      JOIN lojas l ON l.id = a.loja_id
-     LEFT JOIN agendamento_servicos ags ON ags.agendamento_id = a.id
+     LEFT JOIN agendamento_itens ags ON ags.agendamento_id = a.id
      WHERE a.id = $1
-     GROUP BY a.id, c.id, l.id`,
+     GROUP BY a.id, a.codigo, c.id, l.id`,
     [id]
   );
   return rows[0] ?? null;

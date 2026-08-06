@@ -7,7 +7,7 @@ export async function getDadosFinanceiros(
   pagina: number = 1, 
   limite: number = 8
 ) {
-  const [metricas, grafico, pagamentos] = await Promise.all([
+  const [metricas, grafico, pagamentosRes] = await Promise.all([
     metricasFinanceiras(lojaId, dataInicio, dataFim),
     faturamentoPorDia(lojaId, dataInicio, dataFim),
     listarPagamentosPaginados(lojaId, dataInicio, dataFim, pagina, limite) 
@@ -16,6 +16,11 @@ export async function getDadosFinanceiros(
   return {
     metricas,
     grafico,
-    pagamentos,
-  }
+    pagamentos: {
+      pagamentos: pagamentosRes.pagamentos,
+      total: pagamentosRes.total,
+      totalPaginas: pagamentosRes.totalPaginas,
+      paginaAtual: pagina,
+    },
+  };
 }

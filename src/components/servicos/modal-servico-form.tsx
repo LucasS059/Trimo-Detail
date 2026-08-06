@@ -36,7 +36,7 @@ export function ModalServicoForm({
   
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [preco, setPreco] = useState("");
+  const [preco, setPreco] = useState<number | string>("");
   const [duracaoDefault, setDuracaoDefault] = useState(""); // Armazena o valor inicial HH:MM
   const [ativo, setAtivo] = useState(true);
 
@@ -45,7 +45,7 @@ export function ModalServicoForm({
       if (servicoEdicao) {
         setNome(servicoEdicao.nome);
         setDescricao(servicoEdicao.descricao || "");
-        setPreco(Number(servicoEdicao.preco).toFixed(2).replace(".", ","));
+        setPreco(servicoEdicao.preco);
         setDuracaoDefault(minutosParaHHMM(servicoEdicao.duracao_minutos)); // Preenche no formato 01:30
         setAtivo(servicoEdicao.ativo);
       } else {
@@ -65,7 +65,7 @@ export function ModalServicoForm({
     const formData = new FormData(e.currentTarget);
     const duracaoDigitada = formData.get("duracao") as string;
     
-    const precoFormatado = Number(preco.replace(",", "."));
+    const precoFormatado = Number(String(preco).replace(",", "."));
     
     // Converte a hora digitada (ex: "01:30") de volta para minutos inteiros (ex: 90)
     let duracaoMinutosFormatada = 0;
@@ -80,28 +80,22 @@ export function ModalServicoForm({
     }
 
     startTransition(async () => {
-      try {
-        if (servicoEdicao) {
-          await atualizarServicoAction(servicoEdicao.id, {
-            nome,
-            descricao,
-            preco: precoFormatado,
-            duracaoMinutos: duracaoMinutosFormatada,
-            ativo,
-          });
-          toast.success("Serviço atualizado com sucesso!");
-        } else {
-          await criarServicoAction({
-            nome,
-            descricao,
-            preco: precoFormatado,
-            duracaoMinutos: duracaoMinutosFormatada,
-          });
-          toast.success("Serviço criado com sucesso!");
-        }
+      const dados = {
+        nome,
+        descricao,
+        preco: precoFormatado,
+        duracaoMinutos: duracaoMinutosFormatada,
+      };
+
+      const res = servicoEdicao 
+        ? await atualizarServicoAction(servicoEdicao.id, { ...dados, ativo })
+        : await criarServicoAction(dados);
+      
+      if (res.sucesso) {
+        toast.success(`Serviço ${servicoEdicao ? "atualizado" : "criado"} com sucesso!`);
         onSalvo();
-      } catch (err) {
-        toast.error("Erro ao salvar serviço.");
+      } else {
+        toast.error(res.erro);
       }
     });
   }

@@ -11,7 +11,6 @@ import {
   excluirBloqueioPeloAdmin 
 } from "@/lib/actions/agendamentos";
 
-// Tipo para a lista de bloqueios (agora usando inicio e fim completos)
 export type Bloqueio = {
   id: string;
   inicio: string; 
@@ -33,33 +32,34 @@ export function ModalBloquearHorario({ bloqueios = [] }: { bloqueios?: Bloqueio[
     const data = formData.get("data") as string;
     const horaInicio = formData.get("horaInicio") as string;
     const horaFim = formData.get("horaFim") as string;
+    const motivo = formData.get("motivo") as string;
 
-    // O navegador converte a data e hora digitada para o tempo global (UTC) 
-    // com base no fuso do computador (SP, Manaus, etc)
-    const inicioISO = new Date(`${data}T${horaInicio}:00`).toISOString();
-    const fimISO = new Date(`${data}T${horaFim}:00`).toISOString();
-
-    formData.set("inicioISO", inicioISO);
-    formData.set("fimISO", fimISO);
+    const inicio = new Date(`${data}T${horaInicio}:00`);
+    const fim = new Date(`${data}T${horaFim}:00`);
 
     startTransition(async () => {
-      try {
-        await criarBloqueioPeloAdmin(formData);
-        toast.success("Horário bloqueado com sucesso!");
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Erro ao bloquear horário.");
+      const res = await criarBloqueioPeloAdmin({
+        inicio,
+        fim,
+        motivo: motivo ? String(motivo) : undefined,
+      });
+      if (!res.sucesso) {
+        toast.error(res.erro);
+        return;
       }
+      toast.success("Horário bloqueado com sucesso!");
+      setIsOpen(false);
     });
   }
 
   function handleExcluir(id: string) {
     startTransition(async () => {
-      try {
-        await excluirBloqueioPeloAdmin(id);
-        toast.success("Bloqueio removido com sucesso!");
-      } catch (err) {
-        toast.error("Erro ao remover bloqueio.");
+      const res = await excluirBloqueioPeloAdmin(id);
+      if (!res.sucesso) {
+        toast.error(res.erro);
+        return;
       }
+      toast.success("Bloqueio removido com sucesso!");
     });
   }
 
@@ -73,7 +73,6 @@ export function ModalBloquearHorario({ bloqueios = [] }: { bloqueios?: Bloqueio[
       </button>
 
       <Modal aberto={isOpen} onFechar={() => setIsOpen(false)} titulo="Gerenciar Horários Bloqueados" maxWidth="max-w-4xl">
-        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 pt-2">
           
           {/* LADO ESQUERDO: Formulário para NOVO bloqueio */}
@@ -134,8 +133,7 @@ export function ModalBloquearHorario({ bloqueios = [] }: { bloqueios?: Bloqueio[
                   Nenhum horário bloqueado no momento.
                 </p>
               ) : (
-                bloqueios.map((bloqueio) => {
-                  // O navegador converte a data do banco para o fuso local da tela do usuário
+                bloqueios.map((bloqueio: Bloqueio) => {
                   const dataInicio = new Date(bloqueio.inicio);
                   const dataFim = new Date(bloqueio.fim);
 

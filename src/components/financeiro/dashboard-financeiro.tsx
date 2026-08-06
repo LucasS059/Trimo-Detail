@@ -204,7 +204,7 @@ export function DashboardFinanceiro({
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
           <h3 className="text-lg font-bold text-white mb-6">Top Serviços</h3>
           <div className="space-y-4">
-            {metricas.topServicos.length > 0 ? metricas.topServicos.map((s: any, index: number) => (
+            {(metricas.topServicos ?? []).length > 0 ? (metricas.topServicos ?? []).map((s: any, index: number) => (
               <div key={s.nome} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-bold text-zinc-500 w-4">{index + 1}.</span>

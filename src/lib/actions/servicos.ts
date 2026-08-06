@@ -1,7 +1,7 @@
 "use server";
 
 import { actionAutenticada } from "./utils";
-import { criarServico, atualizarServico, excluirServico } from "@/lib/db/servicos";
+import { criarServico, atualizarServico, deletarServico } from "@/lib/db/servicos";
 import { revalidatePath } from "next/cache";
 
 export async function criarServicoAction(dados: {
@@ -28,7 +28,7 @@ export async function atualizarServicoAction(
 
 export async function excluirServicoAction(id: string) {
   return actionAutenticada(async (lojaId) => {
-    await excluirServico(id, lojaId);
+    await deletarServico(id, lojaId);
     revalidatePath("/(admin)/servicos");
   });
 }

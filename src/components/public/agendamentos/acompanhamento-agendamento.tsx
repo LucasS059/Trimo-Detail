@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cancelarAgendamentoPeloCliente, confirmarPresenca } from "@/lib/actions/agendamentos";
 import { formatarMoeda } from "@/lib/formatters";
 
-type ServicoDoAgendamento = { id: string; nome: string; preco: number; duracaoMinutos: number };
+type ServicoDoAgendamento = { id: string; nome: string; preco: number | string; duracaoMinutos: number };
 
 type Agendamento = {
   id: string;
@@ -17,7 +17,7 @@ type Agendamento = {
   servicos: ServicoDoAgendamento[];
   loja_nome: string;
   loja_slug: string;
-  valor: string;
+  valor: number | string;
   cor_primaria?: string | null;
   fuso_horario?: string | null;
 };

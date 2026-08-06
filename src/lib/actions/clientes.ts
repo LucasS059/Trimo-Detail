@@ -13,9 +13,10 @@ import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { revalidatePath } from "next/cache";
 import { pool } from "@/lib/db/client";
 import { buscarLojaPorSlug } from "@/lib/db/lojas";
-import { obterContatoDaSessao } from "@/lib/auth/sessao-cliente";
+import { obterContatoDaSessao, encerrarSessaoCliente } from "@/lib/auth/sessao-cliente";
 import { normalizarContato, detectarCanal } from "@/lib/utils/contato";
 import { validarCodigoAction } from "@/lib/actions/verificacao";
+import { actionPublica } from "@/lib/actions/utils";
 
 export async function listarClientesAction(busca?: string) {
   const lojaId = await obterLojaLogadaId();
@@ -135,6 +136,13 @@ export async function listarMeusAgendamentosAction(slug: string) {
   );
 
   return agendamentos;
+}
+
+export async function encerrarSessaoClienteAction(slug: string) {
+  return actionPublica(async () => {
+    await encerrarSessaoCliente(slug);
+    return { sucesso: true };
+  });
 }
 
 export async function trocarContatoAction(

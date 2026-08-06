@@ -1,8 +1,5 @@
-// app/(public)/acompanhar/[id]/page.tsx
 import { buscarAgendamento } from "@/lib/db/agendamentos";
-import { notFound } from "next/navigation";
-import { AcompanhamentoAgendamento } from "@/components/public/agendamentos/acompanhamento-agendamento";
-import { LojaPublica } from "@/components/public/loja/loja-publica";
+import { notFound, redirect } from "next/navigation";
 
 export default async function AcompanharAgendamentoPage({
   params,
@@ -13,5 +10,5 @@ export default async function AcompanharAgendamentoPage({
   const agendamento = await buscarAgendamento(id);
   if (!agendamento) notFound();
 
-  return <AcompanhamentoAgendamento agendamento={agendamento} />;
+  redirect(`/${agendamento.loja_slug}/meus-agendamentos`);
 }

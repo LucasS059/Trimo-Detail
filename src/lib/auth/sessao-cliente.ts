@@ -51,3 +51,8 @@ export async function obterContatoDaSessao(slug: string): Promise<string | null>
 
   return payload.contato;
 }
+
+export async function encerrarSessaoCliente(slug: string) {
+  const store = await cookies();
+  store.delete(`sessao_cliente_${slug}`);
+}

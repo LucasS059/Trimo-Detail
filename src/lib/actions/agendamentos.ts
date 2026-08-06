@@ -6,7 +6,8 @@ import {
   criarAgendamento, 
   atualizarStatusAgendamento,
   criarBloqueioDb,
-  excluirBloqueioDb
+  excluirBloqueioDb,
+  buscarAgendamento
 } from "@/lib/db/agendamentos";
 import { buscarOuCriarCliente } from "@/lib/db/clientes";
 import { buscarLojaPorSlug } from "@/lib/db/lojas";
@@ -57,6 +58,14 @@ export async function criarAgendamentoPublico(dados: {
 
     revalidatePath(`/${dados.lojaSlug}`);
     return agendamentoId;
+  });
+}
+
+export async function buscarAgendamentoPublicoAction(id: string) {
+  return actionPublica(async () => {
+    const agendamento = await buscarAgendamento(id);
+    if (!agendamento) throw new Error("Agendamento não encontrado.");
+    return agendamento;
   });
 }
 

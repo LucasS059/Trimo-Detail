@@ -4,6 +4,9 @@ import crypto from "crypto";
 import { pool } from "@/lib/db/client";
 import { normalizarContato, detectarCanal } from "@/lib/utils/contato";
 import { criarSessaoCliente } from "@/lib/auth/sessao-cliente";
+import { enviarCodigoContato } from "@/lib/notifications";
+import { actionPublica } from "./utils";
+import { encerrarSessaoCliente } from "@/lib/auth/sessao-cliente";
 
 const EXPIRACAO_MINUTOS = 10;
 const INTERVALO_MINIMO_MS = 60 * 1000; // 1 minuto entre cliques
@@ -88,7 +91,7 @@ export async function solicitarCodigoAction(contatoDigitado: string) {
 
   // 5. Dispara o envio real
   if (canal === "whatsapp") await enviarCodigoWhatsApp(contato, codigo);
-  else await enviarCodigoEmail(contato, codigo);
+  else await enviarCodigoContato(contato, codigo);
 
   return { canal, contato };
 }

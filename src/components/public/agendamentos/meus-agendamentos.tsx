@@ -59,10 +59,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
   const [agendamentoDetalhe, setAgendamentoDetalhe] = useState<AgendamentoDetalhe | null>(null);
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
 
-  const canal = detectarCanal(contatoInput);
-
   useEffect(() => {
-    // Limpa o estado ao trocar de loja
     setEtapa("identificar");
     setAgendamentos([]);
     setPagina(1);
@@ -77,13 +74,7 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
         setAgendamentos(lista.dados);
         setEtapa("lista");
       } else {
-        // Se a action retornou sucesso mas sem dados, ou se falhou (sessão expirada),
-        // o usuário precisa se identificar. Não mostramos erro aqui, apenas a tela de login.
         setEtapa("identificar");
-        if (!lista.sucesso) {
-          // A sessão pode ter expirado, o que é um fluxo normal.
-          console.warn(lista.erro);
-        }
       }
     });
   }, [loja.slug]);
@@ -102,8 +93,17 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
     startTransition(async () => {
       try {
         const resultado = await solicitarCodigoAction(contatoInput);
+        
+        // Tratamento da ActionResponse
+        if (!resultado.sucesso) {
+          setErro(resultado.erro || "Não foi possível enviar o código.");
+          return;
+        }
+
         setContatoMascarado(
-          resultado.canal === "whatsapp" ? mascararTelefone(resultado.contato) : mascararEmail(resultado.contato)
+          resultado.dados.canal === "whatsapp" 
+            ? mascararTelefone(resultado.dados.contato) 
+            : mascararEmail(resultado.dados.contato)
         );
         setEtapa("codigo");
         toast.success("Código enviado com sucesso!");
@@ -118,7 +118,13 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
     setErro(null);
     startTransition(async () => {
       try {
-        await validarCodigoAction(contatoInput, codigoInput, loja.slug);
+        const validacao = await validarCodigoAction(contatoInput, codigoInput, loja.slug);
+        
+        // Tratamento da ActionResponse
+        if (!validacao.sucesso) {
+           setErro(validacao.erro || "Código inválido ou expirado.");
+           return;
+        }
         
         const lista = await listarMeusAgendamentosAction(loja.slug);
         if (lista.sucesso && lista.dados) {
@@ -126,9 +132,8 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
           setEtapa("lista");
           toast.success("Acesso liberado!");
         } else {
-          // Se falhou em obter agendamentos após validar, pode ser que não tenha nenhum.
           setAgendamentos([]);
-          setEtapa("lista"); // Ainda vai para a lista, que mostrará "nenhum agendamento".
+          setEtapa("lista");
           if (!lista.sucesso) toast.error(lista.erro);
         }
       } catch (err) {
@@ -161,136 +166,126 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
-
-      {/* Header Minimalista */}
-      <div className="w-full border-b border-zinc-900 bg-zinc-950/50 backdrop-blur-md sticky top-0 z-10">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-zinc-800">
+      {/* Header Minimalista Glassmorphism */}
+      <header className="w-full border-b border-white/5 bg-zinc-950/60 backdrop-blur-xl sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {etapa === "lista" && (
-              <button
-                type="button"
-                onClick={() => {
-                  startTransition(async () => {
-                    await encerrarSessaoClienteAction(loja.slug);
-                    setEtapa("identificar");
-                    setAgendamentos([]);
-                    setPagina(1);
-                    setContatoInput("");
-                    setCodigoInput("");
-                    setContatoMascarado("");
-                    setErro(null);
-                    toast.success("Sessão encerrada. Insira seu código novamente.");
-                    router.refresh();
-                  });
-                }}
-                className="rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-semibold text-white transition hover:border-zinc-500 hover:bg-zinc-800"
-              >
-                Sair
-              </button>
-            )}
-          </div>
-          <span className="text-sm font-bold text-white truncate max-w-[200px]">{loja.nome}</span>
-        </div>
-      </div>
-
-      <div className="flex-1 max-w-lg w-full mx-auto px-6 py-12">
-
-        {etapa !== "lista" && (
-          <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-4">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 bg-zinc-900 border border-zinc-800">
-              <svg className="w-8 h-8 text-zinc-200" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-              </svg>
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-zinc-800 to-zinc-700 flex items-center justify-center border border-white/10 shadow-inner">
+               <span className="text-xs font-black text-white">{loja.nome.charAt(0).toUpperCase()}</span>
             </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">Meus Agendamentos</h1>
-            <p className="text-sm text-zinc-400 mt-2">Acompanhe os serviços e o histórico da loja.</p>
+            <span className="text-sm font-semibold text-zinc-200 truncate max-w-[200px]">{loja.nome}</span>
+          </div>
+          {etapa === "lista" && (
+            <button
+              type="button"
+              onClick={() => {
+                startTransition(async () => {
+                  await encerrarSessaoClienteAction(loja.slug);
+                  setEtapa("identificar");
+                  setAgendamentos([]);
+                  setPagina(1);
+                  setContatoInput("");
+                  setCodigoInput("");
+                  setContatoMascarado("");
+                  setErro(null);
+                  toast.success("Sessão encerrada com sucesso.");
+                  router.refresh();
+                });
+              }}
+              className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"
+            >
+              Sair
+            </button>
+          )}
+        </div>
+      </header>
+
+      <main className="flex-1 max-w-lg w-full mx-auto px-6 py-12 md:py-16 flex flex-col justify-center">
+        
+        {etapa !== "lista" && (
+          <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Meus Agendamentos</h1>
+            <p className="text-sm text-zinc-400">Acesse seu histórico e detalhes dos serviços.</p>
           </div>
         )}
 
         {etapa === "identificar" && (
-          <form onSubmit={handleSolicitarCodigo} className="space-y-6 animate-in fade-in">
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                WhatsApp ou E-mail
+          <form onSubmit={handleSolicitarCodigo} className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 ml-1">
+                Acesso Seguro (WhatsApp ou E-mail)
               </label>
               <input
                 value={contatoInput}
                 onChange={(e) => handleMudarContato(e.target.value)}
                 required
-                placeholder="(11) 99999-9999"
-                className="w-full h-14 px-4 rounded-xl border border-zinc-800 bg-zinc-900/50 text-white placeholder:text-zinc-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all text-base"
+                placeholder="(11) 99999-9999 ou seu@email.com"
+                className="w-full h-14 px-5 rounded-2xl border border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 outline-none focus:border-zinc-500 focus:bg-zinc-900 transition-all text-base shadow-sm"
               />
             </div>
-            {erro && <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg border border-red-400/20">{erro}</p>}
+            {erro && <p className="text-sm text-red-400 bg-red-500/10 py-2.5 px-4 rounded-xl border border-red-500/20">{erro}</p>}
             <button 
               type="submit" 
               disabled={pending || contatoInput.length < 5} 
-              className="w-full h-14 rounded-xl font-bold text-white bg-zinc-800 hover:bg-zinc-700 transition-all disabled:opacity-50"
+              className="w-full h-14 rounded-2xl font-semibold text-zinc-950 bg-white hover:bg-zinc-200 transition-all disabled:opacity-50 disabled:hover:bg-white shadow-lg shadow-white/5 active:scale-[0.98]"
             >
-              {pending ? "Enviando..." : "Receber código de acesso"}
+              {pending ? "Enviando..." : "Receber código"}
             </button>
           </form>
         )}
 
         {etapa === "codigo" && (
-          <form onSubmit={handleValidarCodigo} className="space-y-6 animate-in fade-in">
-            <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5 text-center">
-              <p className="text-sm text-zinc-300">
-                Código de 6 dígitos enviado para <br/>
-                <strong className="text-white text-base mt-1 block">{contatoMascarado}</strong>
-              </p>
+          <form onSubmit={handleValidarCodigo} className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
+            <div className="text-center mb-6">
+              <p className="text-sm text-zinc-400">Enviamos um código para</p>
+              <p className="text-base font-medium text-white mt-1">{contatoMascarado}</p>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-zinc-500 text-center block">
-                Digite o código
-              </label>
+            <div className="space-y-1.5">
               <input
                 value={codigoInput}
                 onChange={(e) => setCodigoInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 required
                 inputMode="numeric"
                 maxLength={6}
-                placeholder="000000"
-                className="w-full h-16 rounded-xl border border-zinc-800 bg-zinc-900/50 text-white text-center text-3xl font-mono tracking-[0.5em] placeholder:text-zinc-700 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all"
+                placeholder="••••••"
+                className="w-full h-16 rounded-2xl border border-white/10 bg-zinc-900/50 text-white text-center text-4xl font-mono tracking-[0.3em] placeholder:text-zinc-700 outline-none focus:border-zinc-500 focus:bg-zinc-900 transition-all shadow-sm"
               />
             </div>
-            {erro && <p className="text-sm text-red-400 bg-red-400/10 p-3 rounded-lg border border-red-400/20">{erro}</p>}
+            {erro && <p className="text-sm text-red-400 bg-red-500/10 py-2.5 px-4 rounded-xl border border-red-500/20">{erro}</p>}
 
             <button 
               type="submit" 
               disabled={pending || codigoInput.length < 6} 
-              className="w-full h-14 rounded-xl font-bold text-white bg-zinc-800 hover:bg-zinc-700 transition-all disabled:opacity-50"
+              className="w-full h-14 rounded-2xl font-semibold text-zinc-950 bg-white hover:bg-zinc-200 transition-all disabled:opacity-50 shadow-lg shadow-white/5 active:scale-[0.98]"
             >
               {pending ? "Validando..." : "Acessar agendamentos"}
+            </button>
+            <button 
+              type="button" 
+              onClick={() => { setEtapa("identificar"); setCodigoInput(""); setErro(null); }}
+              className="w-full h-12 rounded-2xl font-medium text-zinc-400 hover:text-white transition-colors"
+            >
+              Tentar outro contato
             </button>
           </form>
         )}
 
         {etapa === "lista" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4">
-            <div className="mb-6 rounded-3xl border border-zinc-800 bg-zinc-900/70 p-5">
-              <p className="text-xs uppercase tracking-[0.24em] text-zinc-500 mb-2">Loja</p>
-              <h2 className="text-lg font-bold text-white">{loja.nome}</h2>
-              {loja.descricao && <p className="text-sm text-zinc-400 mt-2">{loja.descricao}</p>}
-              <div className="mt-4 grid gap-2 text-sm text-zinc-400">
-                {loja.endereco && <p><span className="font-semibold text-zinc-200">Endereço:</span> {loja.endereco}</p>}
-                <p>
-                  <span className="font-semibold text-zinc-200">Acesso:</span>{" "}
-                  <a href={`/${loja.slug}`} className="text-sky-300 hover:text-sky-200 transition-colors">
-                    Página da loja
-                  </a>
-                </p>
-              </div>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            
+            <div className="flex items-center justify-between mb-6">
+               <h3 className="text-lg font-semibold text-white">Histórico</h3>
+               <a href={`/${loja.slug}`} className="text-xs font-medium text-zinc-400 hover:text-white transition-colors">
+                  Ver serviços da loja →
+               </a>
             </div>
 
-            <h3 className="text-xl font-bold text-white mb-4">Histórico de serviços</h3>
-
-            <div className="space-y-4">
+            <div className="space-y-3">
               {agendamentos.length === 0 ? (
-                <div className="bg-zinc-900/30 border border-dashed border-zinc-800 rounded-3xl py-16 px-6 text-center">
-                  <p className="text-sm text-zinc-500">Nenhum agendamento encontrado nessa loja.</p>
+                <div className="bg-zinc-900/20 border border-dashed border-white/10 rounded-3xl py-12 px-6 text-center">
+                  <p className="text-sm text-zinc-500">Você ainda não possui agendamentos nesta loja.</p>
                 </div>
               ) : (
                 paginaAgendamentos.map((a) => (
@@ -298,25 +293,28 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
                     key={a.id}
                     type="button"
                     onClick={() => void abrirDetalhes(a.id)}
-                    className="w-full text-left bg-zinc-900/40 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-600 hover:bg-zinc-900 transition-all group"
+                    className="w-full text-left bg-zinc-900/40 border border-white/5 rounded-3xl p-5 hover:bg-zinc-900/80 hover:border-white/10 transition-all group active:scale-[0.99]"
                   >
-                    <div className="flex items-center justify-between mb-4 pb-4 border-b border-zinc-800/60">
+                    <div className="flex items-center justify-between mb-3">
                       <StatusBadge status={a.status} />
-                      <span className="text-xs font-semibold text-zinc-400 capitalize">
-                        {new Date(a.data_hora).toLocaleDateString("pt-BR", { timeZone: loja.fuso_horario || 'America/Sao_Paulo', day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })}
+                      <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
+                        {new Date(a.data_hora).toLocaleDateString("pt-BR", { 
+                          timeZone: loja.fuso_horario || 'America/Sao_Paulo', 
+                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" 
+                        }).replace(" de ", "/").replace(":", "h")}
                       </span>
                     </div>
 
                     <div className="flex items-end justify-between gap-4">
                       <div className="min-w-0 flex-1">
-                        <p className="text-base font-bold text-white truncate mb-1">
-                          {a.servicos.map((s) => s.nome).join(" + ")}
+                        <p className="text-sm font-semibold text-zinc-200 truncate mb-1">
+                          {a.servicos.map((s) => s.nome).join(" • ")}
                         </p>
-                        <p className="text-sm font-mono text-zinc-300 font-semibold">
+                        <p className="text-sm text-zinc-400">
                           {formatarMoeda(a.valor)}
                         </p>
                       </div>
-                      <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 group-hover:bg-zinc-700 group-hover:text-white transition-colors shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 group-hover:bg-white group-hover:text-zinc-950 transition-colors shrink-0">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                         </svg>
@@ -328,31 +326,31 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
             </div>
 
             {totalPages > 1 && (
-              <div className="mt-6 flex items-center justify-center gap-2 text-sm text-zinc-400">
+              <div className="mt-8 flex items-center justify-between text-sm">
                 <button
                   type="button"
                   onClick={() => setPagina((current) => Math.max(1, current - 1))}
                   disabled={pagina === 1}
-                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 disabled:opacity-40"
+                  className="font-medium text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"
                 >
-                  Anterior
+                  ← Anterior
                 </button>
-                <span>
-                  Página {pagina} de {totalPages}
+                <span className="text-zinc-600 font-medium">
+                  {pagina} / {totalPages}
                 </span>
                 <button
                   type="button"
                   onClick={() => setPagina((current) => Math.min(totalPages, current + 1))}
                   disabled={pagina === totalPages}
-                  className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 disabled:opacity-40"
+                  className="font-medium text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"
                 >
-                  Próxima
+                  Próxima →
                 </button>
               </div>
             )}
           </div>
         )}
-      </div>
+      </main>
 
       <Modal
         aberto={Boolean(agendamentoDetalhe || carregandoDetalhe)}
@@ -360,11 +358,14 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
           setAgendamentoDetalhe(null);
           setCarregandoDetalhe(false);
         }}
-        titulo="Detalhes do agendamento"
+        titulo="Detalhes da Reserva"
         maxWidth="max-w-md"
       >
         {carregandoDetalhe ? (
-          <p className="text-sm text-zinc-400">Carregando detalhes...</p>
+          <div className="py-12 flex flex-col items-center justify-center space-y-4">
+             <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin" />
+             <p className="text-sm font-medium text-zinc-400">Carregando informações...</p>
+          </div>
         ) : agendamentoDetalhe ? (
           <AcompanhamentoAgendamento
             agendamento={agendamentoDetalhe}

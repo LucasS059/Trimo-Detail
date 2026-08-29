@@ -25,36 +25,35 @@ export default function HomePage() {
         <section className={styles.heroSection}>
           <div className={styles.heroTextCol}>
             <h1 className={styles.heroTitle}>
-              Chega de box vazio por falta <span className={styles.heroTitleHighlight}>de aviso.</span>
+              Pare de perder tempo agendando clientes <span className={styles.heroTitleHighlight}>pelo WhatsApp.</span>
             </h1>
             <p className={styles.heroSubtitle}>
-              Um sistema completo com a cara da sua estética. O cliente marca sozinho, o Trimo lembra ele e organiza seu faturamento — você foca no detalhamento.
+              Eleve o nível da sua estética automotiva. O Trimo Detail funciona como seu assistente 24h: agenda online, lembretes automáticos e controle de pagamentos em um só lugar.
             </p>
             <div className={styles.heroActions}>
-              <Link href="/cadastro" className={styles.btnHeroPrimary}>Começar gratuitamente</Link>
-              <Link href="#como-funciona" className={styles.btnHeroSecondary}>Ver como funciona</Link>
+              <Link href="/cadastro" className={styles.btnHeroPrimary}>Testar 7 dias grátis</Link>
             </div>
           </div>
 
           <div className={styles.heroImageCol}>
             <div className={styles.heroImageWrapper}>
               <img 
-                src="https://images.unsplash.com/photo-1601362840469-51e4d8d58785?q=80&w=2000&auto=format&fit=crop" 
-                alt="Detailer trabalhando em um carro" 
+                src="https://images.unsplash.com/photo-1550355291-bbee04a92027?q=80&w=2000&auto=format&fit=crop" 
+                alt="Carro de luxo com pintura vitrificada" 
                 className={styles.heroImage}
               />
               <div className={styles.heroImageOverlay}></div>
             </div>
             
             <div className={styles.heroBadge} style={{animationDuration: '3s'}}>
-              <div className={styles.heroBadgeIconWrapper}>
-                <svg className={styles.heroBadgeIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path>
+              <div className={styles.heroBadgeIconWrapperPix}>
+                <svg className={styles.heroBadgeIconPix} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
               </div>
               <div>
-                <p className={styles.heroBadgeTitle}>Novo agendamento!</p>
-                <p className={styles.heroBadgeText}>Carlos - Polimento Comercial</p>
+                <p className={styles.heroBadgeTitle}>Pix Recebido!</p>
+                <p className={styles.heroBadgeText}>R$ 850,00 - Vitrificação</p>
               </div>
             </div>
           </div>
@@ -131,100 +130,50 @@ export default function HomePage() {
         </section>
 
         <section id="planos" className={styles.sectionDark}>
-          <div className={styles.container}>
-            <div className="text-center mb-20">
-              <span className={styles.sectionLabel}>Planos</span>
-              <h2 className={styles.sectionTitleCenterDark}>Um preço justo pro tamanho<br className="hidden md:block"/> do seu negócio.</h2>
-              <p className={styles.plansSubtitle}>Sem taxa de instalação, sem contrato de fidelidade. Escolha um plano para assinar ou comece testando gratuitamente.</p>
+          <div className={styles.plansContainer}>
+            
+            <div className={styles.plansTextCol}>
+              <span className={styles.sectionLabel}>Plano Único</span>
+              <h2 className={styles.plansTitleLeft}>Tudo que você precisa por um preço justo.</h2>
+              <p className={styles.plansSubtitleLeft}>
+                Sem taxa de instalação e sem contrato de fidelidade. Você tem acesso completo a todas as ferramentas do Trimo Detail desde o primeiro minuto.
+              </p>
+              <p className={styles.plansSubtitleHighlight}>
+                Comece agora e tenha <strong>7 dias totalmente gratuitos</strong> para testar na prática. A primeira cobrança só acontece depois desse período.
+              </p>
             </div>
 
-            <div className={styles.plansGrid}>
-              <div className={styles.planCardDark}>
-                <h3 className={styles.planTitleDark}>Teste Grátis</h3>
-                <div className={styles.planPriceWrapper}>
-                  <span className={styles.planCurrencyDark}>R$</span>
-                  <span className={styles.planPriceDark}>0</span>
-                </div>
-                <p className={styles.planDescDark}>Experimente todas as ferramentas por 14 dias. Sem pedir cartão de crédito.</p>
-                <ul className={styles.planListDark}>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckDark}>✓</span> Acesso total ao sistema</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckDark}>✓</span> Link de agendamento próprio</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckDark}>✓</span> Lembretes no WhatsApp</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckDark}>✓</span> Cancele quando quiser</li>
-                </ul>
-                <button className={styles.btnPlanDark}>Começar teste grátis</button>
-              </div>
-
-              <div className={styles.planCardDark}>
-                <h3 className={styles.planTitleDark}>Básico</h3>
-                <div className={styles.planPriceWrapper}>
-                  <span className={styles.planCurrencyDark}>R$</span>
-                  <span className={styles.planPriceDark}>49</span>
-                  <span className={styles.planPeriodDark}>/mês</span>
-                </div>
-                <p className={styles.planDescDark}>Pra quem trabalha sozinho e quer parar de agendar pelo WhatsApp.</p>
-                <ul className={styles.planListDark}>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckDark}>✓</span> 1 profissional</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckDark}>✓</span> Link de agendamento próprio</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckDark}>✓</span> Lembrete automático no WhatsApp</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckDark}>✓</span> Agenda ilimitada</li>
-                </ul>
-                <button className={styles.btnPlanDark}>Assinar Básico</button>
-              </div>
-
+            <div className={styles.plansCardCol}>
               <div className={styles.planCardLight}>
-                <div className={styles.planBadge}>Mais escolhido</div>
-                <h3 className={styles.planTitleLight}>Profissional</h3>
+                <div className={styles.planBadge}>7 Dias Grátis</div>
+                <h3 className={styles.planTitleLight}>Plano Completo</h3>
+                
                 <div className={styles.planPriceWrapper}>
                   <span className={styles.planCurrencyLight}>R$</span>
-                  <span className={styles.planPriceLight}>99</span>
+                  <span className={styles.planPriceLight}>49</span>
                   <span className={styles.planPeriodLight}>/mês</span>
                 </div>
-                <p className={styles.planDescLight}>Pra estética com equipe e múltiplos profissionais atendendo.</p>
+                
+                <p className={styles.planDescLight}>
+                  <strong>Não pague nada hoje.</strong> Sua 1ª cobrança só acontece após os 7 dias de teste grátis.
+                </p>
                 <div className={styles.planDivider}></div>
+                
                 <ul className={styles.planListLight}>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Até 5 profissionais</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Link de agendamento</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Lembretes automáticos</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Painel de faturamento</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Suporte prioritário</li>
+                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Link de agendamento próprio</li>
+                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Lembretes automáticos no WhatsApp</li>
+                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Painel de faturamento integrado</li>
+                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Sem limite de agendamentos</li>
+                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Cancele online quando quiser</li>
                 </ul>
-                <button className={styles.btnPlanLight}>Assinar Profissional</button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.testimonialsSection}>
-          <div className={styles.testimonialsHeader}>
-            <h2 className={styles.testimonialsTitle}>Feito para quem vive do próprio negócio</h2>
-            <p className={styles.testimonialsSubtitle}>Veja o que dizem os profissionais que já automatizaram a agenda com o Trimo.</p>
-          </div>
-
-          <div className={styles.testimonialsGrid}>
-            <div className={styles.testimonialCard}>
-              <div className={styles.testimonialStars}>★★★★★</div>
-              <p className={styles.testimonialText}>"Desde que coloquei o link do Trimo no Instagram, parei de perder 2 horas por dia respondendo mensagem. O cliente marca e eu só vejo a notificação."</p>
-              <div className={styles.testimonialAuthorWrapper}>
-                <div className={styles.testimonialAvatar}></div>
-                <div>
-                  <p className={styles.testimonialAuthorName}>Roberto Silva</p>
-                  <p className={styles.testimonialAuthorRole}>Roberto Estética & Co</p>
-                </div>
+                
+                <Link href="/cadastro" className={styles.btnPlanLight}>
+                  Começar meus 7 dias grátis
+                </Link>
+                <p className="text-center text-xs text-zinc-500 mt-4 font-medium">Sem compromisso. Cancele antes de pagar.</p>
               </div>
             </div>
 
-            <div className={styles.testimonialCard}>
-              <div className={styles.testimonialStars}>★★★★★</div>
-              <p className={styles.testimonialText}>"O lembrete no WhatsApp salvou minha agenda. Antes eu tinha 3 a 4 faltas na semana porque o cliente esquecia. Agora, quase zerei os boxes vazios."</p>
-              <div className={styles.testimonialAuthorWrapper}>
-                <div className={styles.testimonialAvatar}></div>
-                <div>
-                  <p className={styles.testimonialAuthorName}>Juliano Costa</p>
-                  <p className={styles.testimonialAuthorRole}>JC Detailer</p>
-                </div>
-              </div>
-            </div>
           </div>
         </section>
       </main>
@@ -262,16 +211,16 @@ const styles = {
   heroTitleHighlight: "text-[#E56B25]",
   heroSubtitle: "text-lg md:text-xl text-zinc-500 mb-10 max-w-lg leading-relaxed font-medium",
   heroActions: "flex flex-col sm:flex-row items-center gap-4",
-  btnHeroPrimary: "w-full sm:w-auto bg-[#E56B25] hover:bg-[#cf5818] text-white text-base font-bold py-4 px-8 rounded-full transition-all text-center shadow-xl shadow-[#E56B25]/20",
-  btnHeroSecondary: "w-full sm:w-auto bg-white border border-zinc-200 text-zinc-900 hover:border-zinc-400 text-base font-bold py-4 px-8 rounded-full transition-all text-center shadow-sm",
+  btnHeroPrimary: "w-full sm:w-auto block bg-[#E56B25] hover:bg-[#cf5818] text-white text-base font-bold py-4 px-8 rounded-full transition-all text-center shadow-xl shadow-[#E56B25]/20",
 
   heroImageCol: "lg:w-1/2 relative w-full",
-  heroImageWrapper: "aspect-[4/3] bg-zinc-200 rounded-[2rem] overflow-hidden relative shadow-2xl",
-  heroImage: "w-full h-full object-cover",
-  heroImageOverlay: "absolute inset-0 bg-gradient-to-tr from-black/20 to-transparent",
+  heroImageWrapper: "aspect-[4/3] bg-zinc-900 rounded-[2rem] overflow-hidden relative shadow-2xl",
+  heroImage: "w-full h-full object-cover opacity-90",
+  heroImageOverlay: "absolute inset-0 bg-gradient-to-tr from-black/40 to-transparent",
+  
   heroBadge: "absolute -bottom-8 -left-4 sm:left-8 bg-white p-4 pr-6 rounded-2xl shadow-xl flex items-center gap-4 border border-zinc-100 animate-bounce",
-  heroBadgeIconWrapper: "w-10 h-10 bg-[#E56B25]/10 rounded-full flex items-center justify-center",
-  heroBadgeIcon: "w-5 h-5 text-[#E56B25]",
+  heroBadgeIconWrapperPix: "w-10 h-10 bg-green-100 rounded-full flex items-center justify-center",
+  heroBadgeIconPix: "w-5 h-5 text-green-600",
   heroBadgeTitle: "text-sm font-bold text-zinc-900",
   heroBadgeText: "text-xs text-zinc-500 font-medium",
 
@@ -280,7 +229,6 @@ const styles = {
   sectionLabel: "text-[#E56B25] text-xs font-bold tracking-[0.2em] uppercase mb-4 block",
   sectionTitleDark: "text-4xl md:text-5xl font-black tracking-tight mb-20 max-w-2xl leading-tight text-white",
   sectionTitleLight: "text-4xl md:text-5xl font-black text-zinc-900 tracking-tight mb-24 leading-tight",
-  sectionTitleCenterDark: "text-4xl md:text-5xl font-black text-white tracking-tight mb-6",
 
   featuresGrid: "grid md:grid-cols-2 gap-x-16 gap-y-12",
   featureItem: "flex gap-6",
@@ -295,44 +243,27 @@ const styles = {
   stepTitle: "text-xl font-bold text-zinc-900 mb-3",
   stepText: "text-zinc-500 font-medium px-4",
 
-  plansSubtitle: "text-zinc-400 font-medium mb-20",
-  plansGrid: "grid md:grid-cols-3 gap-8 items-center max-w-5xl mx-auto",
+  plansContainer: "max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-16",
+  plansTextCol: "lg:w-1/2 text-left",
+  plansCardCol: "lg:w-1/2 w-full max-w-md mx-auto",
   
-  planCardDark: "bg-zinc-900 rounded-3xl p-10 border border-zinc-800",
-  planTitleDark: "text-2xl font-bold text-white mb-2",
-  planPriceWrapper: "flex items-baseline gap-1 mb-6",
-  planCurrencyDark: "text-xl font-bold text-zinc-500",
-  planPriceDark: "text-5xl font-black text-white",
-  planPeriodDark: "text-zinc-500",
-  planDescDark: "text-zinc-400 text-sm mb-8 font-medium h-10",
-  planListDark: "space-y-4 mb-10 text-zinc-300 text-sm font-medium",
-  planCheckDark: "text-[#E56B25]",
-  btnPlanDark: "w-full bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-4 rounded-full transition-colors",
+  plansTitleLeft: "text-4xl md:text-5xl font-black text-white tracking-tight mb-6",
+  plansSubtitleLeft: "text-zinc-400 font-medium text-lg leading-relaxed mb-4",
+  plansSubtitleHighlight: "text-zinc-300 font-medium text-lg leading-relaxed bg-zinc-900 p-4 border-l-4 border-[#E56B25] rounded-r-lg",
 
-  planCardLight: "bg-white rounded-3xl p-10 shadow-2xl relative transform md:-translate-y-4",
+  planCardLight: "bg-white rounded-3xl p-10 shadow-2xl relative",
   planBadge: "absolute top-0 right-8 -translate-y-1/2 bg-[#E56B25] text-white text-xs font-black uppercase tracking-wider py-1.5 px-3 rounded-full shadow-lg shadow-[#E56B25]/30",
   planTitleLight: "text-2xl font-bold text-zinc-900 mb-2",
+  planPriceWrapper: "flex items-baseline gap-1 mb-4 mt-2",
   planCurrencyLight: "text-xl font-bold text-zinc-400",
   planPriceLight: "text-5xl font-black text-zinc-900",
-  planPeriodLight: "text-zinc-500",
-  planDescLight: "text-zinc-600 text-sm mb-8 font-medium h-10",
+  planPeriodLight: "text-zinc-500 font-medium",
+  planDescLight: "text-zinc-600 text-sm mb-8 font-medium",
   planDivider: "h-[1px] bg-zinc-200 w-full mb-8",
   planListLight: "space-y-4 mb-10 text-zinc-700 text-sm font-bold",
   planCheckLight: "text-[#E56B25]",
-  btnPlanLight: "w-full bg-[#E56B25] hover:bg-[#cf5818] text-white font-black py-4 rounded-full transition-colors shadow-xl shadow-[#E56B25]/30",
-
-  testimonialsSection: "bg-[#FAFAFA] py-32 px-6",
-  testimonialsHeader: "max-w-4xl mx-auto text-center mb-16",
-  testimonialsTitle: "text-4xl font-black text-zinc-900 tracking-tight mb-4",
-  testimonialsSubtitle: "text-zinc-500 font-medium",
-  testimonialsGrid: "grid md:grid-cols-2 gap-8 max-w-5xl mx-auto",
-  testimonialCard: "bg-white p-10 rounded-3xl shadow-sm border border-zinc-100",
-  testimonialStars: "flex gap-1 text-[#E56B25] mb-6",
-  testimonialText: "text-lg text-zinc-900 font-medium mb-8 leading-relaxed",
-  testimonialAuthorWrapper: "flex items-center gap-4",
-  testimonialAvatar: "w-12 h-12 bg-zinc-200 rounded-full",
-  testimonialAuthorName: "font-bold text-zinc-900",
-  testimonialAuthorRole: "text-sm text-zinc-500",
+  
+  btnPlanLight: "block w-full text-center bg-[#E56B25] hover:bg-[#cf5818] text-white font-black py-4 rounded-full transition-colors shadow-xl shadow-[#E56B25]/30",
 
   footer: "bg-zinc-950 pt-16 pb-8 px-6 border-t border-zinc-900",
   footerContainer: "max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6",

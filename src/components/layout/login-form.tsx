@@ -1,5 +1,4 @@
 "use client";
-// components/layout/login-form.tsx
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -28,32 +27,41 @@ export function LoginForm() {
     }
   }
 
+  const inputBaseClass = "w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm bg-zinc-50 focus:bg-white focus:ring-2 focus:ring-[#E56B25]/50 focus:border-[#E56B25] outline-none transition-all placeholder:text-zinc-400";
+  const labelClass = "block text-sm font-bold text-zinc-700 mb-1.5";
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div>
-        <label className="block text-sm font-medium mb-1">E-mail</label>
+        <label className={labelClass}>E-mail</label>
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+          className={inputBaseClass}
+          placeholder="seu@email.com"
         />
       </div>
+
       <div>
-        <label className="block text-sm font-medium mb-1">Senha</label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="block text-sm font-bold text-zinc-700">Senha</label>
+          <a href="#" className="text-sm font-medium text-[#E56B25] hover:underline">Esqueceu a senha?</a>
+        </div>
         <div className="relative">
           <input
             type={mostrarSenha ? "text" : "password"}
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
             required
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm"
+            className={`${inputBaseClass} pr-12`}
+            placeholder="Sua senha"
           />
           <button
             type="button"
             onClick={() => setMostrarSenha((prev) => !prev)}
-            className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+            className="absolute inset-y-0 right-3 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors"
             aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
           >
             {mostrarSenha ? (
@@ -69,9 +77,19 @@ export function LoginForm() {
           </button>
         </div>
       </div>
-      {erro && <p className="text-sm text-red-600">{erro}</p>}
-      <Button type="submit" disabled={carregando} className="w-full">
-        {carregando ? "Entrando..." : "Entrar"}
+
+      {erro && (
+        <div className="bg-red-50 text-red-600 text-sm font-medium p-3 rounded-xl border border-red-100">
+          {erro}
+        </div>
+      )}
+
+      <Button 
+        type="submit" 
+        disabled={carregando} 
+        className="w-full bg-[#E56B25] hover:bg-[#cf5818] text-white font-bold py-6 mt-2 rounded-xl text-base shadow-lg shadow-[#E56B25]/20 transition-all"
+      >
+        {carregando ? "Entrando..." : "Entrar no painel"}
       </Button>
     </form>
   );

@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -160,11 +161,11 @@ export default function HomePage() {
                 <div className={styles.planDivider}></div>
                 
                 <ul className={styles.planListLight}>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Link de agendamento próprio</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Lembretes automáticos no WhatsApp</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Painel de faturamento integrado</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Sem limite de agendamentos</li>
-                  <li className="flex items-center gap-3"><span className={styles.planCheckLight}>✓</span> Cancele online quando quiser</li>
+                  <li className="flex items-center gap-3"><Check className="w-4 h-4 text-[#E56B25] shrink-0" /> Link de agendamento próprio</li>
+                  <li className="flex items-center gap-3"><Check className="w-4 h-4 text-[#E56B25] shrink-0" /> Lembretes automáticos no WhatsApp</li>
+                  <li className="flex items-center gap-3"><Check className="w-4 h-4 text-[#E56B25] shrink-0" /> Painel de faturamento integrado</li>
+                  <li className="flex items-center gap-3"><Check className="w-4 h-4 text-[#E56B25] shrink-0" /> Sem limite de agendamentos</li>
+                  <li className="flex items-center gap-3"><Check className="w-4 h-4 text-[#E56B25] shrink-0" /> Cancele online quando quiser</li>
                 </ul>
                 
                 <Link href="/cadastro" className={styles.btnPlanLight}>

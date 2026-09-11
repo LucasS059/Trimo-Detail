@@ -1,10 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { cancelarAgendamentoPeloCliente, confirmarPresenca } from "@/lib/actions/agendamentos";
 import { formatarMoeda } from "@/lib/formatters";
+import { toast } from "sonner";
 
 type ServicoDoAgendamento = { id: string; nome: string; preco: number | string; duracaoMinutos: number };
 
@@ -32,17 +34,20 @@ export function AcompanhamentoAgendamento({
   onFechar?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
+  const [confirmandoCancelamento, setConfirmandoCancelamento] = useState(false);
 
   const podeConfirmarPresenca = agendamento.status === "agendado" && !agendamento.presenca_confirmada;
   const podeCancelar = agendamento.status === "agendado";
   const mostrarAvisoNaoCancelavel = !podeCancelar && agendamento.status !== "cancelado" && agendamento.status !== "concluido";
 
-  function cancelar() {
-    if (!confirm("Tem certeza que deseja cancelar seu agendamento?")) return;
+  function handleCancelar() {
     startTransition(async () => {
       const res = await cancelarAgendamentoPeloCliente(agendamento.id);
       if (res && !res.sucesso) {
-        alert(res.erro);
+        toast.error(res.erro);
+      } else {
+        toast.success("Agendamento cancelado com sucesso.");
+        setConfirmandoCancelamento(false);
       }
     });
   }
@@ -51,7 +56,9 @@ export function AcompanhamentoAgendamento({
     startTransition(async () => {
       const res = await confirmarPresenca(agendamento.id);
       if (res && !res.sucesso) {
-        alert(res.erro);
+        toast.error(res.erro);
+      } else {
+        toast.success("Presença confirmada!");
       }
     });
   }
@@ -90,7 +97,7 @@ export function AcompanhamentoAgendamento({
             timeStyle: "short",
           })}
         </p>
-        <p className="text-lg font-bold text-white font-mono tabular-nums mt-3">
+        <p className="text-lg font-bold text-white tabular-nums mt-3">
           {formatarMoeda(agendamento.valor)}
         </p>
       </div>
@@ -103,7 +110,7 @@ export function AcompanhamentoAgendamento({
             </Button>
           )}
           {podeCancelar ? (
-            <Button variant="danger" disabled={pending} onClick={cancelar}>
+            <Button variant="danger" disabled={pending} onClick={() => setConfirmandoCancelamento(true)}>
               Cancelar agendamento
             </Button>
           ) : mostrarAvisoNaoCancelavel ? (
@@ -113,6 +120,17 @@ export function AcompanhamentoAgendamento({
           ) : null}
         </div>
       )}
+
+      <ConfirmModal
+        aberto={confirmandoCancelamento}
+        titulo="Cancelar Agendamento"
+        mensagem="Tem certeza de que deseja cancelar seu agendamento? Esta ação liberará o horário para outros clientes."
+        textoConfirmar="Sim, cancelar"
+        destrutivo
+        pending={pending}
+        onConfirmar={handleCancelar}
+        onFechar={() => setConfirmandoCancelamento(false)}
+      />
     </div>
   );
 

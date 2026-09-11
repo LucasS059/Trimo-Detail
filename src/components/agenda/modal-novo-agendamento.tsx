@@ -148,6 +148,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
                 <div>
                   <p className="text-sm font-bold text-white">{clienteSelecionado.nome}</p>
                   <p className="text-xs text-zinc-400 font-mono mt-0.5">{clienteSelecionado.telefone}</p>
+                  <p className="text-xs text-zinc-400 mt-0.5">{clienteSelecionado.telefone}</p>
                 </div>
                 <button 
                   type="button" 
@@ -189,6 +190,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
                               >
                                 <span className="font-semibold text-white text-sm">{c.nome}</span>
                                 <span className="text-xs text-zinc-400 font-mono">{c.telefone}</span>
+                                <span className="text-xs text-zinc-400 font-medium">{c.telefone}</span>
                               </button>
                             </li>
                           ))}
@@ -271,6 +273,17 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
               <label className={campo.label}>Hora</label>
               <InputHora name="hora" required className={campo.input} />
             </div>
+          </div>
+
+          {/* SESSÃO DE OBSERVAÇÕES */}
+          <div className="flex flex-col gap-1.5">
+            <label className={campo.label}>Observações / Detalhes (Opcional)</label>
+            <textarea
+              name="observacoes"
+              placeholder="Ex: Foco nos bancos de couro, arranhão na porta esquerda, etc."
+              rows={2}
+              className="w-full px-3 py-2 rounded-lg border border-zinc-600 bg-zinc-900 text-white placeholder:text-zinc-500 outline-none focus:border-[#E56B25] focus:ring-1 focus:ring-[#E56B25] transition-all text-sm resize-none"
+            />
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-4 mt-2">

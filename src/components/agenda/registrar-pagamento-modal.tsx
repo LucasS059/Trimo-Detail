@@ -3,8 +3,9 @@
 import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { finalizarComBaixaManual, finalizarComPix } from "@/lib/actions/agendamentos";
+import { finalizarComBaixaManual, finalizarComPix, finalizarComPoint } from "@/lib/actions/agendamentos";
 import { toast } from "sonner";
+import { ArrowLeft } from "lucide-react";
 
 type DadosPix = { qrCodeBase64?: string; copiaECola?: string; expiraEm?: string | Date | null };
 
@@ -66,6 +67,22 @@ export function RegistrarPagamentoModal({
     });
   }
 
+  function handlePoint() {
+    startTransition(async () => {
+      try {
+        const resposta = await finalizarComPoint(agendamentoId, valor);
+        if (!resposta.sucesso) {
+          toast.error(resposta.erro);
+          return;
+        }
+        toast.success("Ordem enviada para a maquininha Point!");
+        onFechar();
+      } catch (e: any) {
+        toast.error(e.message || "Erro ao conectar com a maquininha.");
+      }
+    });
+  }
+
   function handleBaixaManual() {
     startTransition(async () => {
       try {
@@ -91,6 +108,14 @@ export function RegistrarPagamentoModal({
               <div>
                 <p className={estilo.metodoLabel}>Pix Dinâmico</p>
                 <p className={estilo.metodoDetalhe}>Gera QR Code e Copia e Cola instantâneo</p>
+              </div>
+              <span className="text-xs font-bold text-[#E56B25]">Selecionar</span>
+            </button>
+
+            <button onClick={handlePoint} disabled={pending} className={estilo.metodoBotao}>
+              <div>
+                <p className={estilo.metodoLabel}>Maquininha (Point)</p>
+                <p className={estilo.metodoDetalhe}>Envia cobrança direta para o terminal</p>
               </div>
               <span className="text-xs font-bold text-[#E56B25]">Selecionar</span>
             </button>
@@ -163,8 +188,9 @@ export function RegistrarPagamentoModal({
                 </Button>
               </div>
             )}
-            <button onClick={() => setEtapa("metodo")} className="text-xs text-zinc-400 hover:text-white mt-2">
-              ← Escolher outro método
+            <button onClick={() => setEtapa("metodo")} className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white mt-2 transition-colors">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Escolher outro método
             </button>
           </div>
         )}

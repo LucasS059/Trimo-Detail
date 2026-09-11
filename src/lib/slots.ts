@@ -69,9 +69,9 @@ export async function calcularHorariosLivres(params: {
   const bloqueios = await listarBloqueiosParaSlots(params.lojaId, inicioDiaUTC, fimDiaUTC);
 
   const { rows: ocupacoes } = await pool.query(
-    `SELECT data_hora, duracao_minutos FROM agendamentos 
+    `SELECT data_hora, data_fim, duracao_minutos FROM agendamentos 
      WHERE loja_id = $1 AND status <> 'cancelado' 
-     AND data_hora >= $2 AND data_hora <= $3`,
+     AND data_hora < $3 AND data_fim > $2`,
     [params.lojaId, inicioDiaUTC.toISOString(), fimDiaUTC.toISOString()]
   );
 

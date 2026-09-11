@@ -1,11 +1,11 @@
 export function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    agendado: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-    em_andamento: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
-    aguardando_pagamento: "bg-[#E56B25]/15 text-[#E56B25] border-[#E56B25]/30",
-    concluido: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    cancelado: "bg-red-500/15 text-red-400 border-red-500/30",
-    nao_compareceu: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
+    agendado: "bg-blue-600 text-white border-blue-500",
+    em_andamento: "bg-amber-400 text-zinc-950 font-bold border-amber-300",
+    aguardando_pagamento: "bg-[#E56B25] text-white border-orange-500",
+    concluido: "bg-emerald-600 text-white border-emerald-500",
+    cancelado: "bg-red-600 text-white border-red-500",
+    nao_compareceu: "bg-zinc-600 text-white border-zinc-500",
   };
 
   const labels: Record<string, string> = {
@@ -18,7 +18,11 @@ export function StatusBadge({ status }: { status: string }) {
   };
 
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${styles[status] || styles.agendado}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold tracking-wide border shadow-xs ${
+        styles[status] || styles.agendado
+      }`}
+    >
       {labels[status] || status}
     </span>
   );

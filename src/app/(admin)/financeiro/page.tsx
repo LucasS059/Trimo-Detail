@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { subDays, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns";
+import { subDays, startOfMonth, endOfMonth, startOfDay, endOfDay, isValid, parseISO } from "date-fns";
 import { fromZonedTime, toZonedTime, format } from "date-fns-tz";
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { getDadosFinanceiros } from "@/lib/db/financeiro";
@@ -45,6 +45,11 @@ export default async function FinanceiroPage({
     }
   } else {
     switch (periodo) {
+      case "hoje":
+        periodoAtual = "hoje";
+        dataInicio = fromZonedTime(startOfDay(agoraNaLoja), fusoHorario);
+        dataFim = fromZonedTime(endOfDay(agoraNaLoja), fusoHorario);
+        break;
       case "7d":
         periodoAtual = "7d";
         dataInicio = fromZonedTime(subDays(agoraNaLoja, 6), fusoHorario);
@@ -64,6 +69,16 @@ export default async function FinanceiroPage({
   }
 
   const dados = await getDadosFinanceiros(lojaId, dataInicio, dataFim, pagina, 10);
+
+  // Redireciona se a página atual for maior que o total existente
+  if (dados.pagamentos.totalPaginas > 0 && pagina > dados.pagamentos.totalPaginas) {
+    const p = new URLSearchParams();
+    if (periodo) p.set("periodo", periodo);
+    if (params.dataInicio) p.set("dataInicio", params.dataInicio);
+    if (params.dataFim) p.set("dataFim", params.dataFim);
+    p.set("pagina", String(dados.pagamentos.totalPaginas));
+    redirect(`/financeiro?${p.toString()}`);
+  }
 
   return (
     <div className="max-w-7xl mx-auto w-full">

@@ -1,8 +1,5 @@
 import { Pool } from "pg";
 
-// Adicione esta linha para depurar o que está a ser lido:
-console.log("🔗 DATABASE_URL ativa:", process.env.DATABASE_URL);
-
 declare global {
   var _pgPool: Pool | undefined;
 }
@@ -11,9 +8,9 @@ export const pool =
   global._pgPool ??
   new Pool({
     connectionString: process.env.DATABASE_URL,
-    max: 20,
+    max: process.env.NODE_ENV === "production" ? 10 : 20,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 5000,
   });
 
 if (process.env.NODE_ENV !== "production") {

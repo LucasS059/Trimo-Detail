@@ -39,7 +39,7 @@ export function ResumoSelecao({
         <p className="text-xs text-zinc-500 mt-0.5 capitalize">
           {horario.toLocaleString("pt-BR", { dateStyle: "long", timeStyle: "short" })}
         </p>
-        <p className="text-sm font-bold text-white font-mono tabular-nums mt-2">
+        <p className="text-sm font-bold text-white tabular-nums mt-2">
           {formatarMoeda(total.toFixed(2))}
         </p>
       </div>

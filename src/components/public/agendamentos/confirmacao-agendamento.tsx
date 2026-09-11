@@ -1,5 +1,6 @@
 // components/public/agendamentos/confirmacao-agendamento.tsx
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 
 export function ConfirmacaoAgendamento({ slugLoja, brand }: { slugLoja: string; brand: string }) {
   return (
@@ -21,10 +22,11 @@ export function ConfirmacaoAgendamento({ slugLoja, brand }: { slugLoja: string; 
       </p>
       <Link
         href={`/${slugLoja}/meus-agendamentos`}
-        className="inline-block mt-4 text-sm font-semibold"
+        className="inline-flex items-center gap-1 mt-4 text-sm font-semibold"
         style={{ color: brand }}
       >
-        Ver meus agendamentos →
+        Ver meus agendamentos
+        <ChevronRight className="w-4 h-4" />
       </Link>
     </div>
   );

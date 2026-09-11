@@ -26,6 +26,7 @@ export async function criarAgendamento(dados: {
   veiculoId?: string;
   servicosIds: string[];
   dataHora: Date;
+  observacoes?: string;
 }) {
   if (dados.servicosIds.length === 0) {
     throw new Error("Selecione ao menos um serviço.");
@@ -62,10 +63,10 @@ export async function criarAgendamento(dados: {
     }
 
     const { rows } = await client.query(
-      `INSERT INTO agendamentos (loja_id, cliente_id, veiculo_id, data_hora, data_fim, duracao_minutos, valor, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 'agendado')
+      `INSERT INTO agendamentos (loja_id, cliente_id, veiculo_id, data_hora, data_fim, duracao_minutos, valor, status, observacoes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 'agendado', $8)
       RETURNING id, codigo`,
-      [dados.lojaId, dados.clienteId, dados.veiculoId ?? null, inicioIso, fimIso, duracaoTotal, valorTotal]
+      [dados.lojaId, dados.clienteId, dados.veiculoId ?? null, inicioIso, fimIso, duracaoTotal, valorTotal, dados.observacoes ?? null]
     );
     const agendamentoId = rows[0].id as string;
 
@@ -99,7 +100,7 @@ export async function criarAgendamento(dados: {
 
 export async function listarAgendamentosPorPeriodo(lojaId: string, inicio: Date, fim: Date) {
   const { rows } = await pool.query(
-    `SELECT a.id, a.codigo, a.data_hora, a.duracao_minutos, a.valor, a.status, a.presenca_confirmada,
+    `SELECT a.id, a.codigo, a.data_hora, a.duracao_minutos, a.valor, a.status, a.presenca_confirmada, a.observacoes,
             c.nome as cliente_nome, c.telefone as cliente_telefone,
             v.modelo as veiculo_modelo, v.placa as veiculo_placa,
             COALESCE(
@@ -112,17 +113,30 @@ export async function listarAgendamentosPorPeriodo(lojaId: string, inicio: Date,
      LEFT JOIN veiculos v ON v.id = a.veiculo_id
      LEFT JOIN agendamento_itens ags ON ags.agendamento_id = a.id
      WHERE a.loja_id = $1 AND a.data_hora BETWEEN $2 AND $3
-     GROUP BY a.id, a.codigo, c.id, v.id
+     GROUP BY a.id, a.codigo, a.observacoes, c.id, v.id
      ORDER BY a.data_hora ASC`,
     [lojaId, inicio.toISOString(), fim.toISOString()]
   );
   return rows;
 }
 
-export async function atualizarStatusAgendamento(id: string, lojaId: string, status: StatusAgendamento) {
+export async function atualizarStatusAgendamento(
+  id: string,
+  lojaId: string,
+  status: StatusAgendamento,
+  opcoes?: {
+    canceladoPor?: "cliente" | "dono" | "funcionario" | "admin";
+    atualizadoPorUsuarioId?: string;
+  }
+) {
   await pool.query(
-    `UPDATE agendamentos SET status = $1, updated_at = now() WHERE id = $2 AND loja_id = $3`,
-    [status, id, lojaId]
+    `UPDATE agendamentos
+     SET status = $1,
+         cancelado_por = COALESCE($4, cancelado_por),
+         atualizado_por_usuario_id = COALESCE($5, atualizado_por_usuario_id),
+         updated_at = now()
+     WHERE id = $2 AND loja_id = $3`,
+    [status, id, lojaId, opcoes?.canceladoPor ?? null, opcoes?.atualizadoPorUsuarioId ?? null]
   );
 }
 
@@ -166,12 +180,20 @@ export async function listarBloqueiosParaSlots(lojaId: string, inicio: Date, fim
 
 export async function buscarAgendamento(id: string) {
   const { rows } = await pool.query(
-    `SELECT a.id, a.codigo, a.data_hora, a.status, a.presenca_confirmada, a.valor,
+    `SELECT a.id, a.codigo, a.loja_id, a.data_hora, a.data_fim, a.duracao_minutos, a.status, a.presenca_confirmada, a.valor, a.observacoes,
+            c.id as cliente_id,
             c.nome as cliente_nome, 
+            c.telefone as cliente_telefone,
+            c.email as cliente_email,
+            v.modelo as veiculo_modelo,
+            v.placa as veiculo_placa,
+            v.cor as veiculo_cor,
             l.nome as loja_nome, 
             l.slug as loja_slug,
+            l.endereco as loja_endereco,
             l.cor_primaria,
             l.fuso_horario,
+            COALESCE(cfg.prazo_cancelamento_minutos, 60) AS prazo_cancelamento_minutos,
             COALESCE(
               json_agg(
                 json_build_object('id', ags.servico_id, 'nome', ags.nome_servico, 'preco', ags.preco, 'duracaoMinutos', ags.duracao_minutos)
@@ -179,10 +201,12 @@ export async function buscarAgendamento(id: string) {
             ) AS servicos
      FROM agendamentos a
      JOIN clientes c ON c.id = a.cliente_id
+     LEFT JOIN veiculos v ON v.id = a.veiculo_id
      JOIN lojas l ON l.id = a.loja_id
+     LEFT JOIN loja_configuracoes_agenda cfg ON cfg.loja_id = l.id
      LEFT JOIN agendamento_itens ags ON ags.agendamento_id = a.id
      WHERE a.id = $1
-     GROUP BY a.id, a.codigo, c.id, l.id`,
+     GROUP BY a.id, a.codigo, a.observacoes, c.id, v.id, l.id, cfg.prazo_cancelamento_minutos`,
     [id]
   );
   return rows[0] ?? null;

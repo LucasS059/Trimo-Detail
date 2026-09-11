@@ -70,7 +70,7 @@ export function SeletorServico({
                 </div>
                 
                 <div className="mt-4 pt-4 border-t border-zinc-800/60 w-full">
-                  <span className={`font-bold font-mono text-lg ${selecionado ? 'text-white' : 'text-zinc-300'}`}>
+                  <span className={`font-bold text-lg ${selecionado ? 'text-white' : 'text-zinc-300'}`}>
                     {formatarMoeda(s.preco)}
                   </span>
                 </div>

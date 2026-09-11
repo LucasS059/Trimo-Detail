@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Modal } from "@/components/ui/modal";
@@ -11,6 +12,18 @@ import { solicitarCodigoAction, validarCodigoAction } from "@/lib/actions/verifi
 import { listarMeusAgendamentosAction, encerrarSessaoClienteAction } from "@/lib/actions/clientes";
 import { buscarAgendamentoPublicoAction } from "@/lib/actions/agendamentos";
 import { AcompanhamentoAgendamento } from "@/components/public/agendamentos/acompanhamento-agendamento";
+import {
+  Calendar,
+  Clock,
+  Car,
+  ChevronRight,
+  ArrowLeft,
+  ArrowRight,
+  LogOut,
+  ExternalLink,
+  Phone,
+  Loader2
+} from "lucide-react";
 
 type Loja = {
   slug: string;
@@ -59,6 +72,8 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
   const [agendamentoDetalhe, setAgendamentoDetalhe] = useState<AgendamentoDetalhe | null>(null);
   const [carregandoDetalhe, setCarregandoDetalhe] = useState(false);
 
+  const corTema = loja.cor_primaria || "#E56B25";
+
   useEffect(() => {
     setEtapa("identificar");
     setAgendamentos([]);
@@ -93,8 +108,6 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
     startTransition(async () => {
       try {
         const resultado = await solicitarCodigoAction(contatoInput);
-        
-        // Tratamento da ActionResponse
         if (!resultado.sucesso) {
           setErro(resultado.erro || "Não foi possível enviar o código.");
           return;
@@ -119,18 +132,16 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
     startTransition(async () => {
       try {
         const validacao = await validarCodigoAction(contatoInput, codigoInput, loja.slug);
-        
-        // Tratamento da ActionResponse
         if (!validacao.sucesso) {
-           setErro(validacao.erro || "Código inválido ou expirado.");
-           return;
+          setErro(validacao.erro || "Código inválido ou expirado.");
+          return;
         }
         
         const lista = await listarMeusAgendamentosAction(loja.slug);
         if (lista.sucesso && lista.dados) {
           setAgendamentos(lista.dados);
           setEtapa("lista");
-          toast.success("Acesso liberado!");
+          toast.success("Acesso liberado com sucesso!");
         } else {
           setAgendamentos([]);
           setEtapa("lista");
@@ -166,16 +177,25 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-zinc-800">
-      {/* Header Minimalista Glassmorphism */}
-      <header className="w-full border-b border-white/5 bg-zinc-950/60 backdrop-blur-xl sticky top-0 z-20">
-        <div className="max-w-3xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-zinc-800 to-zinc-700 flex items-center justify-center border border-white/10 shadow-inner">
-               <span className="text-xs font-black text-white">{loja.nome.charAt(0).toUpperCase()}</span>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans selection:bg-[#E56B25] selection:text-white">
+      {/* Header com identidade da loja e Trimo */}
+      <header className="w-full border-b border-zinc-800/80 bg-zinc-900/60 backdrop-blur-xl sticky top-0 z-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href={`/${loja.slug}`} className="flex items-center gap-3 group">
+            <div
+              style={{ backgroundColor: corTema }}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-md shadow-[#E56B25]/20 group-hover:scale-105 transition-transform"
+            >
+              <Car className="w-4 h-4" />
             </div>
-            <span className="text-sm font-semibold text-zinc-200 truncate max-w-[200px]">{loja.nome}</span>
-          </div>
+            <div>
+              <span className="text-xs text-zinc-400 block font-medium">Estética Automotiva</span>
+              <span className="text-sm font-bold text-white tracking-tight truncate max-w-[200px] block">
+                {loja.nome}
+              </span>
+            </div>
+          </Link>
+
           {etapa === "lista" && (
             <button
               type="button"
@@ -193,158 +213,228 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
                   router.refresh();
                 });
               }}
-              className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-zinc-800 text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900 transition-colors"
             >
+              <LogOut className="w-3.5 h-3.5" />
               Sair
             </button>
           )}
         </div>
       </header>
 
-      <main className="flex-1 max-w-lg w-full mx-auto px-6 py-12 md:py-16 flex flex-col justify-center">
-        
+      <main className="flex-1 max-w-xl w-full mx-auto px-4 py-10 md:py-16 flex flex-col justify-center">
         {etapa !== "lista" && (
-          <div className="text-center mb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Meus Agendamentos</h1>
-            <p className="text-sm text-zinc-400">Acesse seu histórico e detalhes dos serviços.</p>
+          <div className="mb-8">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight mb-2">
+              Meus Agendamentos
+            </h1>
+            <p className="text-sm text-zinc-400">
+              Digite seu WhatsApp ou e-mail para acessar o histórico da sua conta.
+            </p>
           </div>
         )}
 
+        {/* ETAPA 1: Identificar */}
         {etapa === "identificar" && (
-          <form onSubmit={handleSolicitarCodigo} className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 ml-1">
-                Acesso Seguro (WhatsApp ou E-mail)
+          <form
+            onSubmit={handleSolicitarCodigo}
+            className="space-y-5 bg-zinc-900/60 border border-zinc-800 p-6 sm:p-8 rounded-2xl shadow-xl backdrop-blur-sm"
+          >
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-[#E56B25]" />
+                WhatsApp ou E-mail
               </label>
               <input
                 value={contatoInput}
                 onChange={(e) => handleMudarContato(e.target.value)}
                 required
                 placeholder="(11) 99999-9999 ou seu@email.com"
-                className="w-full h-14 px-5 rounded-2xl border border-white/10 bg-zinc-900/50 text-white placeholder:text-zinc-600 outline-none focus:border-zinc-500 focus:bg-zinc-900 transition-all text-base shadow-sm"
+                className="w-full h-12 px-4 rounded-xl border border-zinc-800 bg-zinc-950 text-white placeholder:text-zinc-600 outline-none focus:border-[#E56B25] transition-all text-sm"
               />
+              <span className="text-xs text-zinc-400 font-medium block">
+                Você receberá um código temporário de verificação.
+              </span>
             </div>
-            {erro && <p className="text-sm text-red-400 bg-red-500/10 py-2.5 px-4 rounded-xl border border-red-500/20">{erro}</p>}
-            <button 
-              type="submit" 
-              disabled={pending || contatoInput.length < 5} 
-              className="w-full h-14 rounded-2xl font-semibold text-zinc-950 bg-white hover:bg-zinc-200 transition-all disabled:opacity-50 disabled:hover:bg-white shadow-lg shadow-white/5 active:scale-[0.98]"
+
+            {erro && (
+              <p className="text-xs text-red-400 bg-red-950/40 py-2.5 px-3.5 rounded-xl border border-red-900/50">
+                {erro}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={pending || contatoInput.length < 5}
+              style={{ backgroundColor: corTema }}
+              className="w-full h-12 rounded-xl font-bold text-white text-sm hover:opacity-95 transition-all disabled:opacity-50 shadow-lg shadow-[#E56B25]/20 flex items-center justify-center gap-2"
             >
-              {pending ? "Enviando..." : "Receber código"}
+              {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {pending ? "Enviando código..." : "Receber Código de Acesso"}
             </button>
           </form>
         )}
 
+        {/* ETAPA 2: Código */}
         {etapa === "codigo" && (
-          <form onSubmit={handleValidarCodigo} className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
-            <div className="text-center mb-6">
-              <p className="text-sm text-zinc-400">Enviamos um código para</p>
-              <p className="text-base font-medium text-white mt-1">{contatoMascarado}</p>
+          <form
+            onSubmit={handleValidarCodigo}
+            className="space-y-5 bg-zinc-900/60 border border-zinc-800 p-6 sm:p-8 rounded-2xl shadow-xl backdrop-blur-sm"
+          >
+            <div className="text-center mb-2">
+              <p className="text-xs text-zinc-400">Enviamos um código de segurança para</p>
+              <p className="text-sm font-bold text-white mt-0.5">{contatoMascarado}</p>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <input
                 value={codigoInput}
                 onChange={(e) => setCodigoInput(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 required
                 inputMode="numeric"
                 maxLength={6}
-                placeholder="••••••"
-                className="w-full h-16 rounded-2xl border border-white/10 bg-zinc-900/50 text-white text-center text-4xl font-mono tracking-[0.3em] placeholder:text-zinc-700 outline-none focus:border-zinc-500 focus:bg-zinc-900 transition-all shadow-sm"
+                placeholder="000000"
+                className="w-full h-14 rounded-xl border border-zinc-800 bg-zinc-950 text-white text-center text-3xl font-mono tracking-[0.25em] placeholder:text-zinc-700 outline-none focus:border-[#E56B25] transition-all"
               />
             </div>
-            {erro && <p className="text-sm text-red-400 bg-red-500/10 py-2.5 px-4 rounded-xl border border-red-500/20">{erro}</p>}
 
-            <button 
-              type="submit" 
-              disabled={pending || codigoInput.length < 6} 
-              className="w-full h-14 rounded-2xl font-semibold text-zinc-950 bg-white hover:bg-zinc-200 transition-all disabled:opacity-50 shadow-lg shadow-white/5 active:scale-[0.98]"
+            {erro && (
+              <p className="text-xs text-red-400 bg-red-950/40 py-2.5 px-3.5 rounded-xl border border-red-900/50">
+                {erro}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={pending || codigoInput.length < 6}
+              style={{ backgroundColor: corTema }}
+              className="w-full h-12 rounded-xl font-bold text-white text-sm hover:opacity-95 transition-all disabled:opacity-50 shadow-lg shadow-[#E56B25]/20 flex items-center justify-center gap-2"
             >
-              {pending ? "Validando..." : "Acessar agendamentos"}
+              {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+              {pending ? "Validando..." : "Entrar no Painel"}
             </button>
-            <button 
-              type="button" 
-              onClick={() => { setEtapa("identificar"); setCodigoInput(""); setErro(null); }}
-              className="w-full h-12 rounded-2xl font-medium text-zinc-400 hover:text-white transition-colors"
+
+            <button
+              type="button"
+              onClick={() => {
+                setEtapa("identificar");
+                setCodigoInput("");
+                setErro(null);
+              }}
+              className="w-full py-2 text-xs font-semibold text-zinc-400 hover:text-zinc-200 transition-colors"
             >
-              Tentar outro contato
+              Corrigir contato / reenviar
             </button>
           </form>
         )}
 
+        {/* ETAPA 3: Lista de Agendamentos */}
         {etapa === "lista" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            
-            <div className="flex items-center justify-between mb-6">
-               <h3 className="text-lg font-semibold text-white">Histórico</h3>
-               <a href={`/${loja.slug}`} className="text-xs font-medium text-zinc-400 hover:text-white transition-colors">
-                  Ver serviços da loja →
-               </a>
+          <div className="space-y-5">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+              <div>
+                <h2 className="text-lg font-bold text-white tracking-tight">Meus Agendamentos</h2>
+                <p className="text-xs text-zinc-400">Clique em qualquer serviço para ver o status em tempo real.</p>
+              </div>
+              <Link
+                href={`/${loja.slug}`}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#E56B25] hover:text-[#c75517] transition-colors"
+              >
+                Agendar outro
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
 
             <div className="space-y-3">
               {agendamentos.length === 0 ? (
-                <div className="bg-zinc-900/20 border border-dashed border-white/10 rounded-3xl py-12 px-6 text-center">
-                  <p className="text-sm text-zinc-500">Você ainda não possui agendamentos nesta loja.</p>
+                <div className="bg-zinc-900/40 border border-dashed border-zinc-800 rounded-2xl py-12 px-6 text-center">
+                  <Calendar className="w-8 h-8 text-zinc-600 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-zinc-300 mb-1">Nenhum agendamento encontrado</p>
+                  <p className="text-xs text-zinc-500 mb-4">Você ainda não tem serviços agendados nesta estética.</p>
+                  <Link
+                    href={`/${loja.slug}`}
+                    style={{ backgroundColor: corTema }}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-bold shadow-md shadow-[#E56B25]/20"
+                  >
+                    Agendar primeiro serviço
+                  </Link>
                 </div>
               ) : (
                 paginaAgendamentos.map((a) => (
-                  <button
+                  <div
                     key={a.id}
-                    type="button"
-                    onClick={() => void abrirDetalhes(a.id)}
-                    className="w-full text-left bg-zinc-900/40 border border-white/5 rounded-3xl p-5 hover:bg-zinc-900/80 hover:border-white/10 transition-all group active:scale-[0.99]"
+                    className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-5 hover:border-zinc-700 transition-all group"
                   >
                     <div className="flex items-center justify-between mb-3">
                       <StatusBadge status={a.status} />
-                      <span className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide">
-                        {new Date(a.data_hora).toLocaleDateString("pt-BR", { 
-                          timeZone: loja.fuso_horario || 'America/Sao_Paulo', 
-                          day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" 
-                        }).replace(" de ", "/").replace(":", "h")}
+                      <span className="text-xs font-medium text-zinc-400 flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-[#E56B25]" />
+                        {new Date(a.data_hora).toLocaleDateString("pt-BR", {
+                          timeZone: loja.fuso_horario || "America/Sao_Paulo",
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
                       </span>
                     </div>
 
                     <div className="flex items-end justify-between gap-4">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-zinc-200 truncate mb-1">
+                        <p className="text-sm font-bold text-white truncate mb-1">
                           {a.servicos.map((s) => s.nome).join(" • ")}
                         </p>
-                        <p className="text-sm text-zinc-400">
-                          {formatarMoeda(a.valor)}
+                        <p className="text-sm font-extrabold text-[#E56B25]">
+                          {formatarMoeda(Number(a.valor))}
                         </p>
                       </div>
-                      <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-zinc-500 group-hover:bg-white group-hover:text-zinc-950 transition-colors shrink-0">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                        </svg>
+
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/acompanhar/${a.id}`}
+                          className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 hover:text-white transition-colors flex items-center gap-1.5"
+                          title="Abrir Portal Completo do Carro"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-[#E56B25]" />
+                          Portal
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => void abrirDetalhes(a.id)}
+                          className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-colors"
+                          title="Detalhes Rápidos"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
             </div>
 
             {totalPages > 1 && (
-              <div className="mt-8 flex items-center justify-between text-sm">
+              <div className="pt-4 flex items-center justify-between text-xs font-semibold text-zinc-400">
                 <button
                   type="button"
                   onClick={() => setPagina((current) => Math.max(1, current - 1))}
                   disabled={pagina === 1}
-                  className="font-medium text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:text-white disabled:opacity-30 transition-colors"
                 >
-                  ← Anterior
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  Anterior
                 </button>
-                <span className="text-zinc-600 font-medium">
-                  {pagina} / {totalPages}
+                <span className="text-zinc-400 font-medium text-xs">
+                  Página {pagina} de {totalPages}
                 </span>
                 <button
                   type="button"
                   onClick={() => setPagina((current) => Math.min(totalPages, current + 1))}
                   disabled={pagina === totalPages}
-                  className="font-medium text-zinc-400 hover:text-white disabled:opacity-30 transition-colors"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:text-white disabled:opacity-30 transition-colors"
                 >
-                  Próxima →
+                  Próxima
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
@@ -358,13 +448,13 @@ export function MeusAgendamentos({ loja }: { loja: Loja }) {
           setAgendamentoDetalhe(null);
           setCarregandoDetalhe(false);
         }}
-        titulo="Detalhes da Reserva"
+        titulo="Detalhes do Agendamento"
         maxWidth="max-w-md"
       >
         {carregandoDetalhe ? (
-          <div className="py-12 flex flex-col items-center justify-center space-y-4">
-             <div className="w-8 h-8 border-2 border-zinc-700 border-t-white rounded-full animate-spin" />
-             <p className="text-sm font-medium text-zinc-400">Carregando informações...</p>
+          <div className="py-12 flex flex-col items-center justify-center space-y-3">
+            <Loader2 className="w-7 h-7 text-[#E56B25] animate-spin" />
+            <p className="text-xs font-semibold text-zinc-400">Carregando detalhes do agendamento...</p>
           </div>
         ) : agendamentoDetalhe ? (
           <AcompanhamentoAgendamento

@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cadastrarLoja, slugDisponivel } from "@/lib/actions/cadastro";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 function normalizarSlugVisual(valor: string) {
   return valor
@@ -111,10 +112,16 @@ export function CadastroForm() {
           </p>
         )}
         {statusSlug === "livre" && (
-          <p className="text-xs font-bold text-green-600 mt-2">✓ Link disponível</p>
+          <p className="text-xs font-semibold text-green-600 mt-2 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Link disponível
+          </p>
         )}
         {statusSlug === "ocupado" && (
-          <p className="text-xs font-bold text-red-600 mt-2">✕ Esse link já está em uso, escolha outro</p>
+          <p className="text-xs font-semibold text-red-600 mt-2 flex items-center gap-1">
+            <XCircle className="w-3.5 h-3.5" />
+            Esse link já está em uso, escolha outro
+          </p>
         )}
       </div>
 

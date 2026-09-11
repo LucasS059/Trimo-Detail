@@ -19,6 +19,14 @@ export default async function ClientesPage({
   // Chamada limpa à nossa camada de banco de dados
   const resultado = await listarClientes(lojaId, busca, paginaAtual, 10);
 
+  // Redireciona se a página atual for maior que o total existente
+  if (resultado.totalPaginas > 0 && paginaAtual > resultado.totalPaginas) {
+    const p = new URLSearchParams();
+    if (busca) p.set("busca", busca);
+    p.set("pagina", String(resultado.totalPaginas));
+    redirect(`/clientes?${p.toString()}`);
+  }
+
   return (
     <div className="max-w-5xl mx-auto w-full space-y-6">
       {/* Cabeçalho Padronizado */}

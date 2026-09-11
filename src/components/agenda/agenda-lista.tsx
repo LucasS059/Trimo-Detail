@@ -8,7 +8,7 @@ import { AgendamentoModal, type AgendamentoDetalhe } from "@/components/agenda/a
 const cx = {
   diaBotao: "relative py-2 sm:py-2.5 rounded-xl text-center transition-all flex flex-col items-center justify-center gap-0.5",
   card: "w-full text-left bg-zinc-800 border border-zinc-700 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 hover:border-zinc-600 transition-colors",
-  horario: "text-lg sm:text-xl font-bold text-white font-mono tabular-nums block leading-none",
+  horario: "text-lg sm:text-xl font-bold text-white tabular-nums block leading-none",
   navBotao:
     "w-9 h-9 shrink-0 flex items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 hover:border-zinc-600 text-zinc-400 hover:text-white transition-colors",
 };
@@ -89,6 +89,20 @@ export function AgendaLista({
             </button>
           )}
         </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={dataAtual}
+            onChange={(e) => {
+              if (e.target.value) {
+                router.push(`/agenda?data=${e.target.value}`);
+              }
+            }}
+            className="bg-zinc-800 border border-zinc-700 hover:border-zinc-600 rounded-xl px-3 py-1.5 text-xs text-zinc-200 focus:text-white font-medium outline-none transition-colors cursor-pointer"
+            title="Escolher data diretamente no calendário"
+          />
+        </div>
       </div>
 
       {agendamentosValidos.length > 0 && (
@@ -97,7 +111,7 @@ export function AgendaLista({
             <p className="text-[9px] sm:text-[11px] font-semibold uppercase tracking-wide text-zinc-400 leading-snug">
               Previsto no dia
             </p>
-            <p className="text-sm sm:text-xl font-black text-white font-mono tabular-nums mt-1 truncate">
+            <p className="text-sm sm:text-xl font-bold text-white tabular-nums mt-1 truncate">
               R$ {totalDoDia.toFixed(2).replace(".", ",")}
             </p>
           </div>
@@ -105,7 +119,7 @@ export function AgendaLista({
             <p className="text-[9px] sm:text-[11px] font-semibold uppercase tracking-wide text-zinc-400 leading-snug">
               Carros
             </p>
-            <p className="text-sm sm:text-xl font-black text-white font-mono tabular-nums mt-1">
+            <p className="text-sm sm:text-xl font-bold text-white tabular-nums mt-1">
               {agendamentosValidos.length}
             </p>
           </div>
@@ -113,7 +127,7 @@ export function AgendaLista({
             <p className="text-[9px] sm:text-[11px] font-semibold uppercase tracking-wide text-zinc-400 leading-snug">
               Aguard. pagto.
             </p>
-            <p className={`text-sm sm:text-xl font-black font-mono tabular-nums mt-1 ${aguardandoPagamento > 0 ? "text-[#E56B25]" : "text-white"}`}>
+            <p className={`text-sm sm:text-xl font-bold tabular-nums mt-1 ${aguardandoPagamento > 0 ? "text-[#E56B25]" : "text-white"}`}>
               {aguardandoPagamento}
             </p>
           </div>
@@ -184,7 +198,7 @@ export function AgendaLista({
                     </div>
                   </div>
 
-                  <span className="text-sm sm:text-base font-bold text-white font-mono tabular-nums shrink-0 self-end sm:self-auto">
+                  <span className="text-sm sm:text-base font-bold text-white tabular-nums shrink-0 self-end sm:self-auto">
                     R$ {Number(ag.valor).toFixed(2).replace(".", ",")}
                   </span>
                 </button>

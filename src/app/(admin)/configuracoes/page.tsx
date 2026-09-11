@@ -16,7 +16,7 @@ export default async function ConfiguracoesPage() {
   if (!loja) redirect("/login");
 
   return (
-    <div className="max-w-4xl mx-auto w-full space-y-6">
+    <div className="max-w-5xl mx-auto w-full space-y-6">
       <div>
         <h1 className="text-2xl font-black text-white tracking-tight">Configurações da Loja</h1>
         <p className="text-sm font-medium text-zinc-300 mt-0.5">

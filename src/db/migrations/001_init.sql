@@ -4,7 +4,7 @@ CREATE EXTENSION IF NOT EXISTS btree_gist;
 -- ==========================================
 -- DOMÍNIO 1: LOJA (VITRINE E IDENTIDADE)
 -- ==========================================
-CREATE TABLE lojas (
+CREATE TABLE IF NOT EXISTS lojas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   codigo SERIAL UNIQUE, 
   slug TEXT UNIQUE NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE lojas (
 -- ==========================================
 -- DOMÍNIO 2: AUTENTICAÇÃO E USUÁRIOS DA LOJA
 -- ==========================================
-CREATE TABLE loja_usuarios (
+CREATE TABLE IF NOT EXISTS loja_usuarios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
   nome TEXT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE loja_usuarios (
 -- ==========================================
 -- DOMÍNIO 3: CONFIGURAÇÕES DE REGRAS DE NEGÓCIO
 -- ==========================================
-CREATE TABLE loja_configuracoes_agenda (
+CREATE TABLE IF NOT EXISTS loja_configuracoes_agenda (
   loja_id UUID PRIMARY KEY REFERENCES lojas(id) ON DELETE CASCADE,
   antecedencia_minima_minutos INTEGER NOT NULL DEFAULT 60,
   prazo_cancelamento_minutos INTEGER NOT NULL DEFAULT 60,
@@ -50,7 +50,7 @@ CREATE TABLE loja_configuracoes_agenda (
 -- ==========================================
 -- DOMÍNIO 4: INTEGRAÇÕES E SEGREDOS
 -- ==========================================
-CREATE TABLE loja_integracoes (
+CREATE TABLE IF NOT EXISTS loja_integracoes (
   loja_id UUID PRIMARY KEY REFERENCES lojas(id) ON DELETE CASCADE,
   mercadopago_access_token TEXT,
   mercadopago_user_id TEXT,
@@ -63,7 +63,7 @@ CREATE TABLE loja_integracoes (
 -- ==========================================
 -- DOMÍNIO 5: ASSINATURAS DO SISTEMA (PLANO)
 -- ==========================================
-CREATE TABLE loja_assinaturas (
+CREATE TABLE IF NOT EXISTS loja_assinaturas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
   plano TEXT NOT NULL DEFAULT 'gratuito',
@@ -78,7 +78,7 @@ CREATE TABLE loja_assinaturas (
 -- ==========================================
 -- DOMÍNIO 6: HORÁRIOS E BLOQUEIOS
 -- ==========================================
-CREATE TABLE loja_horarios (
+CREATE TABLE IF NOT EXISTS loja_horarios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
   dia_semana SMALLINT NOT NULL CHECK (dia_semana BETWEEN 0 AND 6),
@@ -89,7 +89,7 @@ CREATE TABLE loja_horarios (
   UNIQUE (loja_id, dia_semana)
 );
 
-CREATE TABLE loja_bloqueios (
+CREATE TABLE IF NOT EXISTS loja_bloqueios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
   inicio TIMESTAMPTZ NOT NULL,
@@ -101,7 +101,7 @@ CREATE TABLE loja_bloqueios (
 -- ==========================================
 -- DOMÍNIO 7: CLIENTES E VEÍCULOS
 -- ==========================================
-CREATE TABLE clientes (
+CREATE TABLE IF NOT EXISTS clientes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   codigo SERIAL UNIQUE, 
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
@@ -114,7 +114,7 @@ CREATE TABLE clientes (
   UNIQUE (loja_id, telefone)
 );
 
-CREATE TABLE veiculos (
+CREATE TABLE IF NOT EXISTS veiculos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   cliente_id UUID NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
   placa TEXT,
@@ -127,7 +127,7 @@ CREATE TABLE veiculos (
 -- ==========================================
 -- DOMÍNIO 8: CATÁLOGO DE SERVIÇOS
 -- ==========================================
-CREATE TABLE servicos (
+CREATE TABLE IF NOT EXISTS servicos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   codigo SERIAL UNIQUE,
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
@@ -142,7 +142,7 @@ CREATE TABLE servicos (
 -- ==========================================
 -- DOMÍNIO 9: OPERAÇÃO (AGENDAMENTOS E PAGAMENTOS)
 -- ==========================================
-CREATE TABLE agendamentos (
+CREATE TABLE IF NOT EXISTS agendamentos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   codigo SERIAL UNIQUE, 
   loja_id UUID NOT NULL REFERENCES lojas(id) ON DELETE CASCADE,
@@ -157,12 +157,13 @@ CREATE TABLE agendamentos (
   ),
   presenca_confirmada BOOLEAN NOT NULL DEFAULT FALSE,
   cancelado_por TEXT CHECK (cancelado_por IN ('cliente', 'dono', 'funcionario', 'admin')),
+  observacoes TEXT,
   atualizado_por_usuario_id UUID REFERENCES loja_usuarios(id) ON DELETE SET NULL, 
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE agendamento_itens (
+CREATE TABLE IF NOT EXISTS agendamento_itens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   agendamento_id UUID NOT NULL REFERENCES agendamentos(id) ON DELETE CASCADE,
   servico_id UUID NOT NULL REFERENCES servicos(id) ON DELETE RESTRICT, 
@@ -172,7 +173,7 @@ CREATE TABLE agendamento_itens (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE pagamentos (
+CREATE TABLE IF NOT EXISTS pagamentos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   codigo SERIAL UNIQUE,
   agendamento_id UUID NOT NULL REFERENCES agendamentos(id) ON DELETE CASCADE,
@@ -191,7 +192,7 @@ CREATE TABLE pagamentos (
 -- ==========================================
 -- DOMÍNIO 10: SEGURANÇA E INFRAESTRUTURA
 -- ==========================================
-CREATE TABLE auth_codigos (
+CREATE TABLE IF NOT EXISTS auth_codigos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   contato TEXT NOT NULL,
   canal TEXT NOT NULL CHECK (canal IN ('whatsapp', 'email')),
@@ -206,28 +207,35 @@ CREATE TABLE auth_codigos (
 -- ==========================================
 -- ÍNDICES DE PERFORMANCE E REGRAS DE INTEGRIDADE
 -- ==========================================
-CREATE UNIQUE INDEX lojas_email_login_key ON loja_usuarios (email_login); 
-CREATE UNIQUE INDEX idx_pagamentos_mp_payment_id ON pagamentos (mercadopago_payment_id) WHERE (mercadopago_payment_id IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS lojas_email_login_key ON loja_usuarios (email_login); 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pagamentos_mp_payment_id ON pagamentos (mercadopago_payment_id) WHERE (mercadopago_payment_id IS NOT NULL);
 
-CREATE INDEX idx_agendamentos_loja_data ON agendamentos (loja_id, data_hora);
-CREATE INDEX idx_agendamentos_cliente_id ON agendamentos (cliente_id);
-CREATE INDEX idx_agendamento_itens_agendamento ON agendamento_itens (agendamento_id);
-CREATE INDEX idx_auth_codigos_contato ON auth_codigos (contato, created_at DESC);
-CREATE INDEX idx_pagamentos_agendamento ON pagamentos (agendamento_id);
-CREATE INDEX idx_pagamentos_status ON pagamentos (status);
-CREATE INDEX idx_clientes_codigo ON clientes(codigo);
-CREATE INDEX idx_agendamentos_codigo ON agendamentos(codigo);
+CREATE INDEX IF NOT EXISTS idx_agendamentos_loja_data ON agendamentos (loja_id, data_hora);
+CREATE INDEX IF NOT EXISTS idx_agendamentos_cliente_id ON agendamentos (cliente_id);
+CREATE INDEX IF NOT EXISTS idx_agendamento_itens_agendamento ON agendamento_itens (agendamento_id);
+CREATE INDEX IF NOT EXISTS idx_auth_codigos_contato ON auth_codigos (contato, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_agendamento ON pagamentos (agendamento_id);
+CREATE INDEX IF NOT EXISTS idx_pagamentos_status ON pagamentos (status);
+CREATE INDEX IF NOT EXISTS idx_clientes_codigo ON clientes(codigo);
+CREATE INDEX IF NOT EXISTS idx_agendamentos_codigo ON agendamentos(codigo);
 
-CREATE INDEX idx_clientes_ativos ON clientes(loja_id) WHERE ativo = true; 
-CREATE INDEX idx_servicos_ativos ON servicos(loja_id) WHERE ativo = true; 
+CREATE INDEX IF NOT EXISTS idx_clientes_ativos ON clientes(loja_id) WHERE ativo = true; 
+CREATE INDEX IF NOT EXISTS idx_servicos_ativos ON servicos(loja_id) WHERE ativo = true; 
 
 -- ==========================================
 -- GIST: PREVENÇÃO DE OVERBOOKING NATIVA
 -- ==========================================
-ALTER TABLE agendamentos
-  ADD CONSTRAINT sem_conflito_horario
-  EXCLUDE USING gist (
-    loja_id WITH =,
-    tstzrange(data_hora, data_fim, '[)') WITH &&
-  )
-  WHERE (status <> 'cancelado');
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'sem_conflito_horario'
+  ) THEN
+    ALTER TABLE agendamentos
+      ADD CONSTRAINT sem_conflito_horario
+      EXCLUDE USING gist (
+        loja_id WITH =,
+        tstzrange(data_hora, data_fim, '[)') WITH &&
+      )
+      WHERE (status <> 'cancelado');
+  END IF;
+END $do$;

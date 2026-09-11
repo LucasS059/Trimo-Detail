@@ -1,9 +1,12 @@
 "use client";
 
+import { Download } from "lucide-react";
+
 import { useMemo, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { formatarMoeda } from "@/lib/formatters";
+import { toast } from "sonner";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
@@ -23,7 +26,32 @@ const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
+const MetodoBadge = ({ forma, detalhe }: { forma: string; detalhe?: string | null }) => {
+  let rotulo = forma;
+  let subrotulo = "";
+
+  if (forma === "pix") {
+    rotulo = "Pix Dinâmico";
+  } else if (forma === "point") {
+    rotulo = "Point (Maquininha)";
+  } else if (forma === "manual") {
+    rotulo = "Baixa Manual";
+    if (detalhe === "dinheiro") subrotulo = "Dinheiro";
+    else if (detalhe === "cartao_debito") subrotulo = "Cartão Débito";
+    else if (detalhe === "cartao_credito") subrotulo = "Cartão Crédito";
+    else if (detalhe === "pix_manual") subrotulo = "Pix Manual";
+  }
+
+  return (
+    <div className="flex flex-col">
+      <span className="text-zinc-200 font-medium">{rotulo}</span>
+      {subrotulo && <span className="text-[11px] text-zinc-400">{subrotulo}</span>}
+    </div>
+  );
+};
+
 const PRESETS = [
+  { label: "Hoje", value: "hoje" },
   { label: "Últimos 7 dias", value: "7d" },
   { label: "Últimos 30 dias", value: "30d" },
   { label: "Este mês", value: "mes_atual" },
@@ -150,33 +178,67 @@ export function DashboardFinanceiro({
 
   function mudarPagina(novaPagina: number) {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("pagina", novaPagina.toString());
+    params.set("pagina", String(novaPagina));
     router.push(`${pathname}?${params.toString()}`);
+  }
+
+  function exportarCSV() {
+    if (!pagamentos.pagamentos || pagamentos.pagamentos.length === 0) {
+      toast.info("Nenhuma transação para exportar no período.");
+      return;
+    }
+
+    const cabecalho = ["Código", "Cliente", "Data", "Método", "Detalhe", "Status", "Valor (R$)"];
+    const linhas = pagamentos.pagamentos.map((p: any) => [
+      `"${p.codigo ?? p.id}"`,
+      `"${(p.cliente_nome || "").replace(/"/g, '""')}"`,
+      `"${formatadorData.format(new Date(p.confirmado_em || p.created_at || p.data_hora))}"`,
+      `"${p.forma || ""}"`,
+      `"${p.forma_manual_detalhe || ""}"`,
+      `"${p.status || ""}"`,
+      Number(p.valor || 0).toFixed(2).replace(".", ",")
+    ]);
+
+    const csvContent = "\uFEFF" + [cabecalho.join(";"), ...linhas.map(l => l.join(";"))].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `relatorio-financeiro-${periodoAtual}-${dataInicio}-a-${dataFim}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Relatório CSV exportado com sucesso!");
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold text-white">Visão Geral Financeira</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-white tracking-tight">Financeiro</h1>
+          <p className="text-sm font-medium text-zinc-300 mt-0.5">
+            Acompanhe o faturamento, meios de pagamento e receitas da estética
+          </p>
+        </div>
         <PeriodoFiltro periodoAtual={periodoAtual} dataInicio={dataInicio} dataFim={dataFim} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl">
-          <p className="text-sm font-semibold text-zinc-400 mb-1">Faturamento Confirmado</p>
-          <p className="text-3xl font-black text-white tabular-nums">{formatarMoeda(metricas.totalConfirmado)}</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Faturamento Confirmado</p>
+          <p className="text-2xl font-bold text-white tabular-nums mt-2">{formatarMoeda(metricas.totalConfirmado)}</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl">
-          <p className="text-sm font-semibold text-zinc-400 mb-1">Agendamentos Finalizados</p>
-          <p className="text-3xl font-black text-white tabular-nums">{metricas.qtdServicos}</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300">A Receber (Pendente)</p>
+          <p className="text-2xl font-bold text-[#E56B25] tabular-nums mt-2">{formatarMoeda(metricas.totalAReceber)}</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl">
-          <p className="text-sm font-semibold text-zinc-400 mb-1">Ticket Médio</p>
-          <p className="text-3xl font-black text-white tabular-nums">{formatarMoeda(metricas.ticketMedio)}</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Serviços Realizados</p>
+          <p className="text-2xl font-bold text-white tabular-nums mt-2">{metricas.qtdServicos}</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-2xl">
-          <p className="text-sm font-semibold text-zinc-400 mb-1">A Receber (Pendentes)</p>
-          <p className="text-3xl font-black text-zinc-400 tabular-nums">{formatarMoeda(metricas.totalAReceber)}</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-300">Ticket Médio</p>
+          <p className="text-2xl font-bold text-white tabular-nums mt-2">{formatarMoeda(metricas.ticketMedio)}</p>
         </div>
       </div>
 
@@ -221,7 +283,17 @@ export function DashboardFinanceiro({
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-white mb-4">Histórico de Transações</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-white">Histórico de Transações</h3>
+          <button
+            onClick={exportarCSV}
+            disabled={pagamentos.pagamentos.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-bold text-zinc-200 hover:text-white border border-zinc-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            title="Baixar planilha CSV das transações filtradas"
+          >
+            <Download className="w-3.5 h-3.5" /> Exportar CSV
+          </button>
+        </div>
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-zinc-800">
@@ -238,8 +310,8 @@ export function DashboardFinanceiro({
                 {pagamentos.pagamentos.length > 0 ? pagamentos.pagamentos.map((p: any) => (
                   <tr key={p.id} className="hover:bg-zinc-800/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-zinc-200">{p.cliente_nome}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400">{formatadorData.format(new Date(p.confirmado_em || p.data_hora))}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400 capitalize">{p.forma}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-zinc-400">{formatadorData.format(new Date(p.confirmado_em || p.created_at || p.data_hora))}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm"><MetodoBadge forma={p.forma} detalhe={p.forma_manual_detalhe} /></td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm"><StatusBadge status={p.status} /></td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-white tabular-nums">{formatarMoeda(p.valor)}</td>
                   </tr>

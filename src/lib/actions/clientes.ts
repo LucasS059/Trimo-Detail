@@ -148,3 +148,11 @@ export async function encerrarSessaoClienteAction(slug: string) {
     return { sucesso: true };
   });
 }
+
+export async function obterHistoricoClienteAction(clienteId: string) {
+  return actionAutenticada(async (lojaId) => {
+    const { obterHistoricoCliente } = await import("@/lib/db/clientes");
+    const dados = await obterHistoricoCliente(lojaId, clienteId);
+    return dados;
+  });
+}

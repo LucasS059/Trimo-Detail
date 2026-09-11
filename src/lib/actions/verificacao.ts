@@ -143,19 +143,19 @@ export async function validarCodigoAction(contatoDigitado: string, codigoDigitad
 }
 
 async function enviarCodigoWhatsApp(telefone: string, codigo: string) {
-  const url = process.env.WHATSAPP_API_URL;
-  if (!url) {
-    console.log(`[whatsapp] WHATSAPP_API_URL não configurada — código não enviado: ${telefone} = ${codigo}`);
-    return;
+  const { enviarMensagemContato } = await import("@/lib/notifications");
+  const mensagem = `Seu código de acesso ao Trimo Detail é: ${codigo}. Válido por 10 minutos.`;
+  await enviarMensagemContato(telefone, "Código de verificação", mensagem);
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`\x1b[33m[DEV AUTH] Código WhatsApp para ${telefone}: ${codigo}\x1b[0m`);
   }
-  // integração real com API de WhatsApp
 }
 
 async function enviarCodigoEmail(email: string, codigo: string) {
-  const url = process.env.EMAIL_API_URL;
-  if (!url) {
-    console.log(`[email] EMAIL_API_URL não configurada — código não enviado: ${email} = ${codigo}`);
-    return;
+  const { enviarEmail } = await import("@/lib/notifications");
+  const mensagem = `Seu código de acesso ao Trimo Detail é: ${codigo}. Válido por 10 minutos.`;
+  await enviarEmail({ email, assunto: "Seu código de verificação - Trimo Detail", mensagem });
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`\x1b[33m[DEV AUTH] Código E-mail para ${email}: ${codigo}\x1b[0m`);
   }
-  // integração real com API de E-mail
 }

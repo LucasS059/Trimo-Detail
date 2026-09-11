@@ -1,28 +1,104 @@
-// lib/whatsapp/client.ts
+import { normalizarTelefone } from "@/lib/utils/contato";
 
 /**
- * Camada de abstração para envio de WhatsApp. O provedor (Z-API, Twilio,
- * Meta Business API) ainda não foi definido — por isso essa função isola
- * o restante do app de qual provedor será usado. Quando decidir, só
- * implementar o fetch aqui dentro, sem mudar quem chama.
+ * Camada de envio de mensagens do WhatsApp.
+ * Suporta nativamente:
+ * 1. Evolution API (v2) - Open Source / Render
+ * 2. Z-API
+ * 3. Webhook HTTP genérico
  */
 export async function enviarWhatsApp(params: { telefone: string; mensagem: string }) {
-  if (!process.env.WHATSAPP_API_URL) {
-    console.warn("[whatsapp] WHATSAPP_API_URL não configurada — mensagem não enviada:", params);
+  const telefoneNormalizado = normalizarTelefone(params.telefone);
+
+  // 1. Prioridade: Evolution API (v2)
+  const evoUrl = process.env.EVOLUTION_API_URL;
+  const evoKey = process.env.EVOLUTION_API_KEY;
+  const evoInstance = process.env.EVOLUTION_INSTANCE_NAME || "trimo";
+
+  if (evoUrl && evoKey) {
+    const urlLimpa = evoUrl.replace(/\/$/, "");
+    const endpoint = `${urlLimpa}/message/sendText/${evoInstance}`;
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: evoKey,
+        },
+        body: JSON.stringify({
+          number: telefoneNormalizado,
+          text: params.mensagem,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[whatsapp] Erro Evolution API (status ${res.status}):`, errText);
+      }
+      return;
+    } catch (error) {
+      console.error("[whatsapp] Falha de conexão com Evolution API:", error);
+      return;
+    }
+  }
+
+  // 2. Prioridade: Z-API
+  const zapiInstanceId = process.env.ZAPI_INSTANCE_ID;
+  const zapiToken = process.env.ZAPI_INSTANCE_TOKEN;
+  const zapiClientToken = process.env.ZAPI_CLIENT_TOKEN;
+
+  if (zapiInstanceId && zapiToken) {
+    const endpoint = `https://api.z-api.io/instances/${zapiInstanceId}/token/${zapiToken}/send-text`;
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (zapiClientToken) {
+      headers["Client-Token"] = zapiClientToken;
+    }
+
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          phone: telefoneNormalizado,
+          message: params.mensagem,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[whatsapp] Erro Z-API (status ${res.status}):`, errText);
+      }
+      return;
+    } catch (error) {
+      console.error("[whatsapp] Falha de conexão com Z-API:", error);
+      return;
+    }
+  }
+
+  // 3. Fallback: URL HTTP Genérica
+  if (process.env.WHATSAPP_API_URL) {
+    try {
+      await fetch(process.env.WHATSAPP_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.WHATSAPP_API_TOKEN}`,
+        },
+        body: JSON.stringify({
+          telefone: telefoneNormalizado,
+          mensagem: params.mensagem,
+        }),
+      });
+    } catch (error) {
+      console.error("[whatsapp] Erro ao enviar para WHATSAPP_API_URL:", error);
+    }
     return;
   }
 
-  await fetch(process.env.WHATSAPP_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.WHATSAPP_API_TOKEN}`,
-    },
-    body: JSON.stringify({
-      telefone: params.telefone,
-      mensagem: params.mensagem,
-    }),
-  });
+  console.warn("[whatsapp] Nenhum provedor de WhatsApp configurado no ambiente.");
 }
 
 export function mensagemConfirmacaoAgendamento(params: {

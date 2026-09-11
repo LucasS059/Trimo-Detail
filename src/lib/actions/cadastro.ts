@@ -4,8 +4,24 @@
 import bcrypt from "bcryptjs";
 import { pool } from "@/lib/db/client";
 import { cookies } from "next/headers";
+import { assinarSessaoLoja, COOKIE_SESSION_NAME } from "@/lib/auth/sessao-loja";
 
-const COOKIE_NOME = "trimo_session";
+const SLUGS_RESERVADOS = new Set([
+  "login",
+  "cadastro",
+  "admin",
+  "agenda",
+  "clientes",
+  "servicos",
+  "financeiro",
+  "configuracoes",
+  "api",
+  "acompanhar",
+  "meus-agendamentos",
+  "auth",
+  "termos",
+  "privacidade"
+]);
 
 function normalizarSlug(valor: string) {
   return valor
@@ -19,6 +35,7 @@ function normalizarSlug(valor: string) {
 export async function slugDisponivel(slugBruto: string) {
   const slug = normalizarSlug(slugBruto);
   if (!slug) return false;
+  if (SLUGS_RESERVADOS.has(slug)) return false;
 
   const { rows } = await pool.query(`SELECT 1 FROM lojas WHERE slug = $1 AND ativo = TRUE`, [slug]);
   return rows.length === 0;
@@ -35,6 +52,9 @@ export async function cadastrarLoja(dados: {
 
   if (!dados.nome || !slug || !dados.emailLogin || !dados.senha) {
     throw new Error("Preencha todos os campos obrigatórios.");
+  }
+  if (SLUGS_RESERVADOS.has(slug)) {
+    throw new Error("Este endereço (link) é reservado pelo sistema. Por favor, escolha outro.");
   }
   if (dados.senha.length < 6) {
     throw new Error("A senha precisa ter pelo menos 6 caracteres.");
@@ -110,9 +130,10 @@ export async function cadastrarLoja(dados: {
 
     await client.query("COMMIT");
 
-    // Faz o login automático após o cadastro bem-sucedido
+    // Faz o login automático após o cadastro bem-sucedido com sessão assinada
+    const token = await assinarSessaoLoja(lojaId);
     const cookieStore = await cookies();
-    cookieStore.set(COOKIE_NOME, lojaId, {
+    cookieStore.set(COOKIE_SESSION_NAME, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

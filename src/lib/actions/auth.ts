@@ -4,8 +4,7 @@
 import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { buscarLojaPorEmail } from "@/lib/db/lojas";
-
-const COOKIE_NOME = "trimo_session";
+import { assinarSessaoLoja, verificarSessaoLoja, COOKIE_SESSION_NAME } from "@/lib/auth/sessao-loja";
 
 export async function autenticar(params: { email: string; senha: string }) {
   const lojaUsuario = await buscarLojaPorEmail(params.email);
@@ -14,8 +13,10 @@ export async function autenticar(params: { email: string; senha: string }) {
   const senhaValida = await bcrypt.compare(params.senha, lojaUsuario.senha_hash);
   if (!senhaValida) throw new Error("E-mail ou senha inválidos");
 
+  const token = await assinarSessaoLoja(lojaUsuario.id);
+
   const cookieStore = await cookies();
-  cookieStore.set(COOKIE_NOME, lojaUsuario.id, {
+  cookieStore.set(COOKIE_SESSION_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -26,13 +27,14 @@ export async function autenticar(params: { email: string; senha: string }) {
 
 export async function encerrarSessao() {
   const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NOME);
+  cookieStore.delete(COOKIE_SESSION_NAME);
 }
 
-/** Usado pelas páginas do admin para saber qual loja (tenant) está logada. */
+/** Usado pelas páginas do admin para saber qual loja (tenant) está logada com validação HMAC. */
 export async function obterLojaLogadaId(): Promise<string | null> {
   const cookieStore = await cookies();
-  return cookieStore.get(COOKIE_NOME)?.value ?? null;
+  const token = cookieStore.get(COOKIE_SESSION_NAME)?.value;
+  return verificarSessaoLoja(token);
 }
 
 export async function obterContatoDaSessao(slug: string): Promise<string | null> {

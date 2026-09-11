@@ -27,6 +27,61 @@ export async function registrarBaixaManual(dados: { agendamentoId: string; valor
   }
 }
 
+export async function registrarPagamentoPixPendente(dados: {
+  agendamentoId: string;
+  valor: number;
+  mercadopagoPaymentId: string;
+  qrCodeBase64: string;
+  copiaECola: string;
+  expiraEm: Date;
+}) {
+  const { rows } = await pool.query(
+    `INSERT INTO pagamentos (
+      agendamento_id,
+      forma,
+      valor,
+      status,
+      mercadopago_payment_id,
+      qr_code_base64,
+      copia_e_cola,
+      expira_em
+    ) VALUES ($1, 'pix', $2, 'pendente', $3, $4, $5, $6)
+    RETURNING id, codigo`,
+    [
+      dados.agendamentoId,
+      dados.valor,
+      dados.mercadopagoPaymentId,
+      dados.qrCodeBase64,
+      dados.copiaECola,
+      dados.expiraEm.toISOString(),
+    ]
+  );
+  return rows[0].id as string;
+}
+
+export async function registrarPagamentoPointPendente(dados: {
+  agendamentoId: string;
+  valor: number;
+  mercadopagoPaymentId?: string;
+}) {
+  const { rows } = await pool.query(
+    `INSERT INTO pagamentos (
+      agendamento_id,
+      forma,
+      valor,
+      status,
+      mercadopago_payment_id
+    ) VALUES ($1, 'point', $2, 'pendente', $3)
+    RETURNING id, codigo`,
+    [
+      dados.agendamentoId,
+      dados.valor,
+      dados.mercadopagoPaymentId || null,
+    ]
+  );
+  return rows[0].id as string;
+}
+
 export async function buscarLojaPorMercadoPagoPaymentId(paymentId: string) {
   const { rows } = await pool.query(
     `SELECT a.loja_id FROM pagamentos p
@@ -46,12 +101,17 @@ export async function confirmarPagamentoPorMercadoPagoId(
     await client.query("BEGIN");
 
     const { rows: pagRows } = await client.query(
-      `SELECT agendamento_id FROM pagamentos WHERE mercadopago_payment_id = $1`,
+      `SELECT agendamento_id, status FROM pagamentos WHERE mercadopago_payment_id = $1 FOR UPDATE`,
       [paymentId]
     );
 
     if (pagRows.length === 0) {
       throw new Error("Pagamento não encontrado pelo payment_id do Mercado Pago.");
+    }
+
+    if (pagRows[0].status === "confirmado") {
+      await client.query("COMMIT");
+      return;
     }
 
     const agendamentoId = pagRows[0].agendamento_id;
@@ -161,18 +221,18 @@ export async function listarPagamentosPaginados(lojaId: string, inicio: Date, fi
   const countQuery = await pool.query(
     `SELECT COUNT(*) FROM pagamentos p
      JOIN agendamentos a ON a.id = p.agendamento_id
-     WHERE a.loja_id = $1 AND p.confirmado_em BETWEEN $2 AND $3`,
+     WHERE a.loja_id = $1 AND COALESCE(p.confirmado_em, p.created_at) BETWEEN $2 AND $3`,
     [lojaId, inicio.toISOString(), fim.toISOString()]
   );
   const total = parseInt(countQuery.rows[0].count, 10);
 
   const { rows } = await pool.query(
-    `SELECT p.id, p.codigo, p.valor, p.forma, p.status, p.confirmado_em, a.data_hora, a.codigo as agendamento_codigo, c.nome as cliente_nome
+    `SELECT p.id, p.codigo, p.valor, p.forma, p.forma_manual_detalhe, p.status, p.confirmado_em, p.created_at, a.data_hora, a.codigo as agendamento_codigo, c.nome as cliente_nome
      FROM pagamentos p
      JOIN agendamentos a ON a.id = p.agendamento_id
      JOIN clientes c ON c.id = a.cliente_id
-     WHERE a.loja_id = $1 AND p.confirmado_em BETWEEN $2 AND $3
-     ORDER BY p.confirmado_em DESC
+     WHERE a.loja_id = $1 AND COALESCE(p.confirmado_em, p.created_at) BETWEEN $2 AND $3
+     ORDER BY COALESCE(p.confirmado_em, p.created_at) DESC
      LIMIT $4 OFFSET $5`,
     [lojaId, inicio.toISOString(), fim.toISOString(), limite, offset]
   );

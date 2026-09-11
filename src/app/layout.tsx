@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from 'sonner';
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://trimodetail.com.br';
 
@@ -37,15 +44,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className="scroll-smooth" data-scroll-behavior="smooth">
-      <body className={styles.body}>
+    <html lang="pt-BR" className={`scroll-smooth ${inter.variable}`}>
+      <body className="antialiased bg-[#FAFAFA] text-zinc-900 font-sans selection:bg-[#E56B25] selection:text-white min-h-screen">
         {children}
-        <Toaster position="top-right" richColors />     
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
 }
-
-const styles = {
-  body: "antialiased bg-[#FAFAFA] text-zinc-900 font-sans selection:bg-[#E56B25] selection:text-white min-h-screen",
-};

@@ -39,7 +39,7 @@ export async function gerarCobrancaPix(dados: {
         payment_method_id: "pix",
         payer: { email: dados.emailPagador },
         date_of_expiration: dataExpiracao.toISOString(),
-        notification_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/mercadopago/webhook`,
+        notification_url: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL}/api/mercadopago/webhook`,
       }),
     });
   } catch (error: any) {

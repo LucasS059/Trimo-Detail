@@ -65,7 +65,7 @@ export async function criarAgendamentoPublico(dados: {
       const { buscarServicosPorIds } = await import("@/lib/db/servicos");
       const servicos = await buscarServicosPorIds(dados.servicosIds, loja.id);
       const nomesServicos = servicos.map((s) => s.nome).join(", ");
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+      const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
       const linkAcompanhamento = `${appUrl}/acompanhar/${agendamentoId}`;
 
       await enviarWhatsApp({
@@ -130,7 +130,7 @@ export async function criarAgendamentoPeloAdmin(formData: FormData): Promise<Act
         const { buscarServicosPorIds } = await import("@/lib/db/servicos");
         const servicos = await buscarServicosPorIds(servicosIds, lojaId);
         const nomesServicos = servicos.map((s) => s.nome).join(", ");
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
         const linkAcompanhamento = `${appUrl}/acompanhar/${agendamentoId}`;
 
         await enviarWhatsApp({
@@ -170,7 +170,7 @@ export async function mudarStatusAgendamento(id: string, status: StatusAgendamen
       const ag = await buscarAgendamento(id);
       if (ag && ag.cliente_telefone) {
         const { enviarWhatsApp, mensagemMudancaStatus } = await import("@/lib/whatsapp/client");
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
         const linkAcompanhamento = `${appUrl}/acompanhar/${id}`;
         const statusLabel = STATUS_LABELS[status] || status;
 
@@ -205,7 +205,7 @@ export async function enviarLembreteWhatsAppAction(id: string): Promise<ActionRe
     if (!ag.cliente_telefone) throw new Error("Cliente não possui telefone cadastrado.");
 
     const { enviarWhatsApp, mensagemLembretePresenca } = await import("@/lib/whatsapp/client");
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
     const linkConfirmacao = `${appUrl}/acompanhar/${id}`;
 
     await enviarWhatsApp({
@@ -354,7 +354,7 @@ export async function finalizarComBaixaManual(
       const ag = await buscarAgendamento(agendamentoId);
       if (ag && ag.cliente_telefone) {
         const { enviarWhatsApp } = await import("@/lib/whatsapp/client");
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
         const linkAcompanhamento = `${appUrl}/acompanhar/${agendamentoId}`;
         const servicosTexto = ag.servicos?.map((s: { nome: string }) => s.nome).join(", ") || "serviço";
 

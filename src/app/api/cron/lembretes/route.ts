@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     );
 
     let disparados = 0;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
 
     for (const ag of agendamentosParaLembrar) {
       if (!ag.cliente_telefone) continue;

@@ -96,10 +96,10 @@ export async function criarAgendamentoPeloAdmin(formData: FormData): Promise<Act
     const servicosIds = formData.getAll("servicosIds") as string[];
     const observacoes = (formData.get("observacoes") as string) || undefined;
 
-    // Se o cliente não foi selecionado da lista, mas preencheu o formulário de novo cliente, cadastra-o na hora
+    // Se o cliente não foi selecionado da lista, mas preencheu o formulário de novo cliente, cadastra-o ou localiza com segurança
     if (!clienteId && clienteNome && clienteTelefone) {
-      const { criarCliente } = await import("@/lib/db/clientes");
-      clienteId = await criarCliente(lojaId, {
+      const { buscarOuCriarCliente } = await import("@/lib/db/clientes");
+      clienteId = await buscarOuCriarCliente(lojaId, {
         nome: clienteNome,
         telefone: clienteTelefone,
       });
@@ -348,6 +348,25 @@ export async function finalizarComBaixaManual(
   return actionAutenticada(async () => {
     const { registrarBaixaManual } = await import("@/lib/db/pagamentos");
     await registrarBaixaManual({ agendamentoId, valor, detalhe });
+
+    // Notificação WhatsApp de conclusão do serviço e confirmação de pagamento
+    try {
+      const ag = await buscarAgendamento(agendamentoId);
+      if (ag && ag.cliente_telefone) {
+        const { enviarWhatsApp } = await import("@/lib/whatsapp/client");
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+        const linkAcompanhamento = `${appUrl}/acompanhar/${agendamentoId}`;
+        const servicosTexto = ag.servicos?.map((s: { nome: string }) => s.nome).join(", ") || "serviço";
+
+        await enviarWhatsApp({
+          telefone: ag.cliente_telefone,
+          mensagem: `Olá, ${ag.cliente_nome}! Seu serviço (${servicosTexto}) foi concluído com sucesso e o pagamento registrado. Seu veículo está pronto! Acompanhe os detalhes: ${linkAcompanhamento}`,
+        });
+      }
+    } catch (msgErr) {
+      console.warn("[whatsapp] Falha ao enviar notificação de conclusão:", msgErr);
+    }
+
     revalidatePath("/(admin)/agenda");
     revalidatePath("/(admin)/financeiro");
   });

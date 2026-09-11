@@ -81,20 +81,7 @@ export async function enviarMensagemContato(contato: string, assunto: string, me
   const canal = detectarCanal(contato);
 
   if (canal === "whatsapp") {
-    if (process.env.WHATSAPP_API_URL) {
-      await enviarWhatsApp({ telefone: contato, mensagem });
-      return;
-    }
-
-    if (process.env.SMS_API_URL) {
-      await enviarSms({ telefone: contato, mensagem });
-      return;
-    }
-
-    console.warn(
-      "[notificacoes] Nenhum provedor de WhatsApp/SMS configurado — mensagem não enviada:",
-      contato
-    );
+    await enviarWhatsApp({ telefone: contato, mensagem });
     return;
   }
 

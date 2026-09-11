@@ -20,6 +20,7 @@ export async function enviarWhatsApp(params: { telefone: string; mensagem: strin
     const endpoint = `${urlLimpa}/message/sendText/${evoInstance}`;
 
     try {
+      console.log(`[whatsapp] Disparando envio via Evolution API para ${telefoneNormalizado}...`);
       const res = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -30,15 +31,18 @@ export async function enviarWhatsApp(params: { telefone: string; mensagem: strin
           number: telefoneNormalizado,
           text: params.mensagem,
         }),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!res.ok) {
         const errText = await res.text();
         console.error(`[whatsapp] Erro Evolution API (status ${res.status}):`, errText);
+      } else {
+        console.log(`[whatsapp] Mensagem enviada com sucesso para ${telefoneNormalizado}`);
       }
       return;
     } catch (error) {
-      console.error("[whatsapp] Falha de conexão com Evolution API:", error);
+      console.error("[whatsapp] Falha de conexão ou timeout com Evolution API:", error);
       return;
     }
   }

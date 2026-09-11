@@ -52,26 +52,38 @@ export async function criarClienteAction(dados: {
   });
 }
 
-export async function buscarClientesAutocompleteAction(termo: string) {
+export async function buscarClientesAutocompleteAction(termo?: string) {
   const lojaId = await obterLojaLogadaId();
   if (!lojaId) throw new Error("Não autenticado");
 
-  if (!termo || termo.trim().length === 0) {
+  const termoLimpo = termo?.trim() || "";
+  if (!termoLimpo) {
     const { rows } = await pool.query(
-      `SELECT id, nome, telefone FROM clientes WHERE loja_id = $1 AND ativo = TRUE ORDER BY nome ASC LIMIT 10`,
+      `SELECT id, nome, telefone FROM clientes 
+       WHERE loja_id = $1 AND ativo = TRUE 
+       ORDER BY updated_at DESC, nome ASC 
+       LIMIT 8`,
       [lojaId]
     );
     return rows;
   }
 
+  // Extrai apenas dígitos para busca flexível de telefone (com ou sem 55, com ou sem parênteses)
+  const digitos = termoLimpo.replace(/\D/g, "");
+  const digitosSem55 = digitos.startsWith("55") && digitos.length > 2 ? digitos.slice(2) : digitos;
+
   const { rows } = await pool.query(
     `SELECT id, nome, telefone FROM clientes 
      WHERE loja_id = $1 
        AND ativo = TRUE 
-       AND (nome ILIKE '%' || $2 || '%' OR telefone ILIKE '%' || $2 || '%')
-     ORDER BY nome ASC 
+       AND (
+         nome ILIKE '%' || $2 || '%' 
+         OR telefone ILIKE '%' || $2 || '%'
+         OR ($3 <> '' AND regexp_replace(telefone, '\\D', '', 'g') ILIKE '%' || $3 || '%')
+       )
+     ORDER BY updated_at DESC, nome ASC 
      LIMIT 10`,
-    [lojaId, termo.trim()]
+    [lojaId, termoLimpo, digitosSem55]
   );
   return rows;
 }

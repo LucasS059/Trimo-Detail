@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { InputHora } from "@/components/ui/input-hora";
 import { toast } from "sonner";
-import { criarHandlerTelefone, normalizarTelefone } from "@/lib/utils/contato";
+import { criarHandlerTelefone, normalizarTelefone, aplicarMascaraTelefone } from "@/lib/utils/contato";
 import {
   UserCheck,
   UserPlus,
@@ -164,7 +164,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
           <div className="flex flex-col gap-3 p-4 bg-zinc-950/60 border border-zinc-800 rounded-2xl">
             <div className="flex items-center justify-between">
               <label className={campo.label}>Cliente</label>
-              <span className="text-xs text-zinc-400">Identificação para contato e lembrete</span>
+              <span className="text-xs text-zinc-400">Identificação para contato e WhatsApp</span>
             </div>
 
             {/* Alternador de Abas: Cliente Já Cadastrado vs Novo Cliente */}
@@ -215,7 +215,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
                         <p className="text-sm font-bold text-white">{clienteSelecionado.nome}</p>
                         <p className="text-xs text-zinc-300 font-medium flex items-center gap-1.5 mt-0.5">
                           <Phone className="w-3 h-3 text-zinc-400" />
-                          {clienteSelecionado.telefone}
+                          {aplicarMascaraTelefone(clienteSelecionado.telefone)}
                         </p>
                       </div>
                     </div>
@@ -295,7 +295,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
                               <p className="font-semibold text-white text-xs sm:text-sm">{c.nome}</p>
                               <p className="text-xs text-zinc-300 font-medium flex items-center gap-1 mt-0.5">
                                 <Phone className="w-3 h-3 text-zinc-500" />
-                                {c.telefone}
+                                {aplicarMascaraTelefone(c.telefone)}
                               </p>
                             </div>
                             <span className="text-xs font-bold text-[#E56B25] group-hover:text-white bg-[#E56B25]/10 group-hover:bg-[#E56B25] px-2.5 py-1 rounded-lg transition-colors">

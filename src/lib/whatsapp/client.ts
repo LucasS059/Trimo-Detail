@@ -42,6 +42,7 @@ export async function enviarWhatsApp(params: { telefone: string; mensagem: strin
       }
       return;
     } catch (error) {
+      console.error("[whatsapp] Falha de conexão com Evolution API:", error);
       console.error("[whatsapp] Falha de conexão ou timeout com Evolution API:", error);
       return;
     }

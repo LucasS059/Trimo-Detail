@@ -20,7 +20,7 @@ import { criarAgendamentoPeloAdmin } from "@/lib/actions/agendamentos";
 import { buscarClientesAutocompleteAction } from "@/lib/actions/clientes";
 
 type ServicoResultado = { id: string; nome: string; preco: number | string; duracao_minutos: number };
-type ClienteBuscado = { id: string; nome: string; telefone: string };
+type ClienteBuscado = { id: string; nome: string; telefone: string; email?: string | null };
 
 const campo = {
   label: "text-sm font-bold text-zinc-300",
@@ -48,6 +48,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
   // Estados para Novo Cliente
   const [clienteNomeNovo, setClienteNomeNovo] = useState("");
   const [clienteTelefoneNovo, setClienteTelefoneNovo] = useState("");
+  const [clienteEmailNovo, setClienteEmailNovo] = useState("");
 
   const handleTelefoneNovoChange = criarHandlerTelefone(setClienteTelefoneNovo);
 
@@ -99,6 +100,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
       setClienteSelecionado(null);
       setClienteNomeNovo("");
       setClienteTelefoneNovo("");
+      setClienteEmailNovo("");
       setModoCliente("cadastrado");
       formRef.current?.reset();
     }, 200);
@@ -122,6 +124,9 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
       formData.set("clienteId", clienteSelecionado.id);
       formData.set("clienteNome", clienteSelecionado.nome);
       formData.set("clienteTelefone", clienteSelecionado.telefone);
+      if (clienteSelecionado.email) {
+        formData.set("clienteEmail", clienteSelecionado.email);
+      }
     } else {
       if (!clienteNomeNovo.trim() || !clienteTelefoneNovo.trim()) {
         toast.error("Preencha o nome e o WhatsApp do novo cliente.");
@@ -129,6 +134,9 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
       }
       formData.set("clienteNome", clienteNomeNovo.trim());
       formData.set("clienteTelefone", normalizarTelefone(clienteTelefoneNovo));
+      if (clienteEmailNovo.trim()) {
+        formData.set("clienteEmail", clienteEmailNovo.trim());
+      }
     }
 
     // Adiciona os serviços no formData
@@ -293,10 +301,17 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
                           >
                             <div>
                               <p className="font-semibold text-white text-xs sm:text-sm">{c.nome}</p>
-                              <p className="text-xs text-zinc-300 font-medium flex items-center gap-1 mt-0.5">
-                                <Phone className="w-3 h-3 text-zinc-500" />
-                                {aplicarMascaraTelefone(c.telefone)}
-                              </p>
+                              <div className="flex items-center gap-2.5 text-xs text-zinc-300 font-medium mt-0.5 flex-wrap">
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-3 h-3 text-zinc-500" />
+                                  {aplicarMascaraTelefone(c.telefone)}
+                                </span>
+                                {c.email && (
+                                  <span className="text-zinc-500 text-[11px] truncate max-w-[170px]">
+                                    {c.email}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <span className="text-xs font-bold text-[#E56B25] group-hover:text-white bg-[#E56B25]/10 group-hover:bg-[#E56B25] px-2.5 py-1 rounded-lg transition-colors">
                               Selecionar
@@ -316,6 +331,8 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
                             if (busca.trim()) {
                               if (/^\d+$/.test(busca.replace(/\D/g, ""))) {
                                 setClienteTelefoneNovo(busca);
+                              } else if (busca.includes("@")) {
+                                setClienteEmailNovo(busca);
                               } else {
                                 setClienteNomeNovo(busca);
                               }
@@ -335,7 +352,7 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
             {/* ABA 2: NOVO CLIENTE (SEM REGISTRO) */}
             {modoCliente === "novo" && (
               <div className="space-y-3 animate-in fade-in">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="text-xs font-bold text-zinc-300 block mb-1">Nome Completo</label>
                     <input 
@@ -355,6 +372,16 @@ export function ModalNovoAgendamento({ servicos }: { servicos: ServicoResultado[
                       onChange={handleTelefoneNovoChange}
                       inputMode="numeric"
                       maxLength={16}
+                      className={campo.input}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-zinc-300 block mb-1">E-mail (Opcional)</label>
+                    <input
+                      type="email"
+                      placeholder="cliente@email.com"
+                      value={clienteEmailNovo}
+                      onChange={(e) => setClienteEmailNovo(e.target.value)}
                       className={campo.input}
                     />
                   </div>

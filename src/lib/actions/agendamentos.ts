@@ -91,6 +91,7 @@ export async function criarAgendamentoPeloAdmin(formData: FormData): Promise<Act
     let clienteId = formData.get("clienteId") as string;
     const clienteNome = formData.get("clienteNome") as string;
     const clienteTelefone = formData.get("clienteTelefone") as string;
+    const clienteEmail = (formData.get("clienteEmail") as string) || undefined;
     const data = formData.get("data") as string;
     const hora = formData.get("hora") as string;
     const servicosIds = formData.getAll("servicosIds") as string[];
@@ -102,6 +103,7 @@ export async function criarAgendamentoPeloAdmin(formData: FormData): Promise<Act
       clienteId = await buscarOuCriarCliente(lojaId, {
         nome: clienteNome,
         telefone: clienteTelefone,
+        email: clienteEmail,
       });
     }
 

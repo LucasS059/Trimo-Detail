@@ -59,7 +59,7 @@ export async function buscarClientesAutocompleteAction(termo?: string) {
   const termoLimpo = termo?.trim() || "";
   if (!termoLimpo) {
     const { rows } = await pool.query(
-      `SELECT id, nome, telefone FROM clientes 
+      `SELECT id, nome, telefone, email FROM clientes 
        WHERE loja_id = $1 AND ativo = TRUE 
        ORDER BY updated_at DESC, nome ASC 
        LIMIT 8`,
@@ -73,11 +73,12 @@ export async function buscarClientesAutocompleteAction(termo?: string) {
   const digitosSem55 = digitos.startsWith("55") && digitos.length > 2 ? digitos.slice(2) : digitos;
 
   const { rows } = await pool.query(
-    `SELECT id, nome, telefone FROM clientes 
+    `SELECT id, nome, telefone, email FROM clientes 
      WHERE loja_id = $1 
        AND ativo = TRUE 
        AND (
          nome ILIKE '%' || $2 || '%' 
+         OR email ILIKE '%' || $2 || '%'
          OR telefone ILIKE '%' || $2 || '%'
          OR ($3 <> '' AND regexp_replace(telefone, '\\D', '', 'g') ILIKE '%' || $3 || '%')
        )

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CadastroForm } from "@/components/layout/cadastro-form";
+import { CadastroForm } from "@/components/auth";
 
 export default function CadastroPage() {
   return (

@@ -7,8 +7,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      // Bloqueia os robôs de vasculharem áreas privadas e de processamento
-      disallow: ['/api/', '/(admin)/'], 
+      // Bloqueia os robôs de vasculharem áreas privadas e rotas de API
+      disallow: ['/api/', '/agenda', '/clientes', '/servicos', '/financeiro', '/configuracoes'], 
     },
     sitemap: `${baseUrl}/sitemap.xml`,
   };

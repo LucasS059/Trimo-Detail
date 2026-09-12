@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LoginForm } from "@/components/layout/login-form";
+import { LoginForm } from "@/components/auth";
 
 export default function LoginPage() {
   return (

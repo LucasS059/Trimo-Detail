@@ -1,6 +1,6 @@
 import { obterLojaLogadaId } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
-import { ConfiguracoesForm } from "@/components/layout/configuracoes-form";
+import { ConfiguracoesForm } from "@/components/configuracoes";
 import { buscarConfiguracoesLoja, obterOuCriarHorariosFuncionamento } from "@/lib/db/lojas";
 
 export default async function ConfiguracoesPage() {

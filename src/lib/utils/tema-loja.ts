@@ -12,4 +12,3 @@ export function corMarca(cor_primaria?: string | null): string {
 export function estiloTemaLoja(cor_primaria?: string | null): React.CSSProperties {
   return { ["--brand" as any]: corMarca(cor_primaria) };
 }
-export * from "./utils/tema-loja";

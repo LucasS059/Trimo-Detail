@@ -16,4 +16,3 @@ export function formatarDuracao(minutos: number): string {
   const m = minutos % 60;
   return m === 0 ? `${h}h` : `${h}h ${m.toString().padStart(2, "0")}min`;
 }
-export * from "./utils/formatters";

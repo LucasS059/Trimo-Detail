@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
        LEFT JOIN loja_configuracoes_agenda cfg ON cfg.loja_id = l.id
        WHERE a.status = 'agendado'
          AND a.presenca_confirmada = FALSE
+         AND a.lembrete_enviado = FALSE
          AND a.data_hora >= now()
          AND a.data_hora <= now() + (COALESCE(cfg.lembrete_confirmacao_minutos, 60) || ' minute')::interval
        ORDER BY a.data_hora ASC
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     );
 
     let disparados = 0;
-    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+    const appUrl = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
 
     for (const ag of agendamentosParaLembrar) {
       if (!ag.cliente_telefone) continue;
@@ -45,6 +46,10 @@ export async function GET(request: NextRequest) {
             linkConfirmacao,
           }),
         });
+        await pool.query(
+          "UPDATE agendamentos SET lembrete_enviado = TRUE, updated_at = now() WHERE id = $1",
+          [ag.id]
+        );
         disparados++;
       } catch (e) {
         console.error(`[cron/lembretes] Falha ao enviar lembrete agendamento #${ag.codigo}:`, e);

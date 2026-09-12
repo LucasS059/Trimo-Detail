@@ -16,7 +16,7 @@ export async function criarVeiculoAction(clienteId: string, dados: {
     }
 
     const veiculoId = await criarVeiculo(clienteId, dados);
-    revalidatePath("/(admin)/clientes");
+    revalidatePath("/clientes");
     return { veiculoId };
   });
 }
@@ -29,6 +29,6 @@ export async function deletarVeiculoAction(veiculoId: string): Promise<ActionRes
     }
 
     await deletarVeiculo(veiculoId);
-    revalidatePath("/(admin)/clientes");
+    revalidatePath("/clientes");
   });
 }

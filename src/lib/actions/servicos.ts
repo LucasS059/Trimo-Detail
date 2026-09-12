@@ -12,7 +12,7 @@ export async function criarServicoAction(dados: {
 }) {
   return actionAutenticada(async (lojaId) => {
     await criarServico(lojaId, dados);
-    revalidatePath("/(admin)/servicos");
+    revalidatePath("/servicos");
   });
 }
 
@@ -22,13 +22,13 @@ export async function atualizarServicoAction(
 ) {
   return actionAutenticada(async (lojaId) => {
     await atualizarServico(id, lojaId, dados);
-    revalidatePath("/(admin)/servicos");
+    revalidatePath("/servicos");
   });
 }
 
 export async function excluirServicoAction(id: string) {
   return actionAutenticada(async (lojaId) => {
     await deletarServico(id, lojaId);
-    revalidatePath("/(admin)/servicos");
+    revalidatePath("/servicos");
   });
 }

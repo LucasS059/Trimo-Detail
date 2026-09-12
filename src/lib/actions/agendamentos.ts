@@ -8,10 +8,15 @@ import {
   criarBloqueioDb,
   excluirBloqueioDb,
   buscarAgendamento,
+  marcarLembreteEnviado,
   type StatusAgendamento
 } from "@/lib/db/agendamentos";
 import { buscarOuCriarCliente, buscarClientePorContato } from "@/lib/db/clientes";
 import { buscarLojaPorSlug } from "@/lib/db/lojas";
+
+function obterBaseAppUrl() {
+  return (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+}
 
 export async function criarAgendamentoPublico(dados: {
   lojaSlug: string;
@@ -65,7 +70,7 @@ export async function criarAgendamentoPublico(dados: {
       const { buscarServicosPorIds } = await import("@/lib/db/servicos");
       const servicos = await buscarServicosPorIds(dados.servicosIds, loja.id);
       const nomesServicos = servicos.map((s) => s.nome).join(", ");
-      const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+      const appUrl = obterBaseAppUrl();
       const linkAcompanhamento = `${appUrl}/acompanhar/${agendamentoId}`;
 
       await enviarWhatsApp({
@@ -132,7 +137,7 @@ export async function criarAgendamentoPeloAdmin(formData: FormData): Promise<Act
         const { buscarServicosPorIds } = await import("@/lib/db/servicos");
         const servicos = await buscarServicosPorIds(servicosIds, lojaId);
         const nomesServicos = servicos.map((s) => s.nome).join(", ");
-        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+        const appUrl = obterBaseAppUrl();
         const linkAcompanhamento = `${appUrl}/acompanhar/${agendamentoId}`;
 
         await enviarWhatsApp({
@@ -149,7 +154,7 @@ export async function criarAgendamentoPeloAdmin(formData: FormData): Promise<Act
       console.warn("[whatsapp] Falha ao enviar confirmação de agendamento admin:", msgErr);
     }
 
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
     return { agendamentoId };
   });
 }
@@ -172,7 +177,7 @@ export async function mudarStatusAgendamento(id: string, status: StatusAgendamen
       const ag = await buscarAgendamento(id);
       if (ag && ag.cliente_telefone) {
         const { enviarWhatsApp, mensagemMudancaStatus } = await import("@/lib/whatsapp/client");
-        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+        const appUrl = obterBaseAppUrl();
         const linkAcompanhamento = `${appUrl}/acompanhar/${id}`;
         const statusLabel = STATUS_LABELS[status] || status;
 
@@ -189,14 +194,14 @@ export async function mudarStatusAgendamento(id: string, status: StatusAgendamen
       console.warn("[whatsapp] Falha ao enviar mudança de status:", msgErr);
     }
 
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
   });
 }
 
 export async function marcarNaoCompareceuPeloDono(id: string): Promise<ActionResponse<void>> {
   return actionAutenticada(async (lojaId) => {
     await atualizarStatusAgendamento(id, lojaId, "nao_compareceu");
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
   });
 }
 
@@ -207,7 +212,7 @@ export async function enviarLembreteWhatsAppAction(id: string): Promise<ActionRe
     if (!ag.cliente_telefone) throw new Error("Cliente não possui telefone cadastrado.");
 
     const { enviarWhatsApp, mensagemLembretePresenca } = await import("@/lib/whatsapp/client");
-    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+    const appUrl = obterBaseAppUrl();
     const linkConfirmacao = `${appUrl}/acompanhar/${id}`;
 
     await enviarWhatsApp({
@@ -218,6 +223,8 @@ export async function enviarLembreteWhatsAppAction(id: string): Promise<ActionRe
         linkConfirmacao,
       }),
     });
+
+    await marcarLembreteEnviado(id);
   });
 }
 
@@ -226,7 +233,7 @@ export async function cancelarAgendamentoPeloDono(id: string): Promise<ActionRes
     await atualizarStatusAgendamento(id, lojaId, "cancelado", {
       canceladoPor: "dono",
     });
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
   });
 }
 
@@ -278,7 +285,7 @@ export async function cancelarAgendamentoPeloCliente(id: string): Promise<Action
 
     revalidatePath(`/${ag.loja_slug}/meus-agendamentos`);
     revalidatePath(`/acompanhar/${id}`);
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
   });
 }
 
@@ -309,7 +316,7 @@ export async function confirmarPresenca(id: string): Promise<ActionResponse<void
 
     revalidatePath(`/${ag.loja_slug}/meus-agendamentos`);
     revalidatePath(`/acompanhar/${id}`);
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
   });
 }
 
@@ -321,14 +328,14 @@ export async function criarBloqueioPeloAdmin(dados: { inicio: Date; fim: Date; m
       fim: dados.fim,
       motivo: dados.motivo,
     });
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
   });
 }
 
 export async function excluirBloqueioPeloAdmin(id: string): Promise<ActionResponse<void>> {
   return actionAutenticada(async (lojaId) => {
     await excluirBloqueioDb(id, lojaId);
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
   });
 }
 
@@ -356,7 +363,7 @@ export async function finalizarComBaixaManual(
       const ag = await buscarAgendamento(agendamentoId);
       if (ag && ag.cliente_telefone) {
         const { enviarWhatsApp } = await import("@/lib/whatsapp/client");
-        const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "";
+        const appUrl = obterBaseAppUrl();
         const linkAcompanhamento = `${appUrl}/acompanhar/${agendamentoId}`;
         const servicosTexto = ag.servicos?.map((s: { nome: string }) => s.nome).join(", ") || "serviço";
 
@@ -369,8 +376,8 @@ export async function finalizarComBaixaManual(
       console.warn("[whatsapp] Falha ao enviar notificação de conclusão:", msgErr);
     }
 
-    revalidatePath("/(admin)/agenda");
-    revalidatePath("/(admin)/financeiro");
+    revalidatePath("/agenda");
+    revalidatePath("/financeiro");
   });
 }
 
@@ -422,7 +429,7 @@ export async function finalizarComPix(
       [agendamentoId, lojaId]
     );
 
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
 
     return {
       qrCodeBase64: cobranca.qrCodeBase64,
@@ -474,7 +481,7 @@ export async function finalizarComPoint(
       [agendamentoId, lojaId]
     );
 
-    revalidatePath("/(admin)/agenda");
+    revalidatePath("/agenda");
   });
 }
 

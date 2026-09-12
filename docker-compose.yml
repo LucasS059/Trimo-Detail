@@ -1,25 +1,30 @@
 services:
-  postgres:
-    image: postgres:16
-    container_name: trimo-detail-db
+  evolution-api:
+    image: evoapicloud/evolution-api:latest
+    container_name: trimo-evolution-api
     restart: unless-stopped
+    ports:
+      - "${EVOLUTION_PORT:-8082}:8080"
+    env_file:
+      - .env.local
     environment:
-      POSTGRES_USER: trimo_admin
-      POSTGRES_PASSWORD: trimo_dev_2026
-      POSTGRES_DB: trimo_detail
-    ports:
-      - "5433:5432"
+      - SERVER_PORT=8080
+      - SERVER_URL=${EVOLUTION_SERVER_URL:-http://localhost:8082}
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=${EVOLUTION_DATABASE_URL}
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_CHATS=false
+      - DATABASE_SAVE_MESSAGE_UPDATE=false
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_LOCAL_ENABLED=true
+      - WEBSOCKET_ENABLED=true
+      - CONFIG_SESSION_PHONE_CLIENT=Trimo Detail
+      - CONFIG_SESSION_PHONE_NAME=Chrome
+      - CONFIG_SESSION_PHONE_VERSION=2.3000.1047359146
     volumes:
-      - pgdata_v2:/var/lib/postgresql/data
-
-  adminer:
-    image: adminer
-    container_name: trimo-detail-adminer
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    depends_on:
-      - postgres
+      - evolution_instances:/evolution/instances
 
 volumes:
-  pgdata_v2:
+  evolution_instances:

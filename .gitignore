@@ -157,5 +157,5 @@ pgdata/
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
-.idea/
 .env*
+!.env.example

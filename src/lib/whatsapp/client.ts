@@ -34,7 +34,6 @@ export async function enviarWhatsApp(params: { telefone: string; mensagem: strin
             text: params.mensagem,
           },
         }),
-        signal: AbortSignal.timeout(10000),
         signal: AbortSignal.timeout(25000),
       });
 
@@ -46,7 +45,6 @@ export async function enviarWhatsApp(params: { telefone: string; mensagem: strin
       }
       return;
     } catch (error) {
-      console.error("[whatsapp] Falha de conexão com Evolution API:", error);
       console.error("[whatsapp] Falha de conexão ou timeout com Evolution API:", error);
       return;
     }

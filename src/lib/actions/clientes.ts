@@ -47,7 +47,7 @@ export async function criarClienteAction(dados: {
       });
     }
 
-    revalidatePath("/(admin)/clientes");
+    revalidatePath("/clientes");
     return { clienteId };
   });
 }
@@ -107,7 +107,7 @@ export async function atualizarClienteAction(
       email: dados.email || null,
     });
 
-    revalidatePath("/(admin)/clientes");
+    revalidatePath("/clientes");
   });
 }
 
@@ -117,7 +117,7 @@ export async function deletarClienteAction(clienteId: string): Promise<ActionRes
     if (!cliente || cliente.loja_id !== lojaId) throw new Error("Cliente não encontrado");
 
     await deletarCliente(clienteId);
-    revalidatePath("/(admin)/clientes");
+    revalidatePath("/clientes");
   });
 }
 

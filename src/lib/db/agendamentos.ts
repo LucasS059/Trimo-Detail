@@ -215,3 +215,7 @@ export async function buscarAgendamento(id: string) {
 export async function atualizarStatus(id: string, status: string) {
   await pool.query(`UPDATE agendamentos SET status = $1, updated_at = now() WHERE id = $2`, [status, id]);
 }
+
+export async function marcarLembreteEnviado(id: string) {
+  await pool.query(`UPDATE agendamentos SET lembrete_enviado = TRUE, updated_at = now() WHERE id = $1`, [id]);
+}

@@ -30,8 +30,12 @@ export async function enviarWhatsApp(params: { telefone: string; mensagem: strin
         body: JSON.stringify({
           number: telefoneNormalizado,
           text: params.mensagem,
+          textMessage: {
+            text: params.mensagem,
+          },
         }),
         signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(25000),
       });
 
       if (!res.ok) {
